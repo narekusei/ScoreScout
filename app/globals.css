@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root { --ink: #17211c; --muted: #69746e; --paper: #f5f3ed; --cream: #ebe8de; --green: #1f5a3d; --lime: #d9f260; --line: #d8d8cf; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; color: var(--ink); background: var(--paper); font-family: var(--font-sans), sans-serif; }
+button, input { font: inherit; }
+a { color: inherit; text-decoration: none; }
+.topbar { height: 76px; padding: 0 5vw; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 750; letter-spacing: -.6px; }
+.brandMark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: var(--lime); font-family: var(--font-serif); font-size: 22px; }
+nav { display: flex; align-items: center; gap: 28px; font-size: 14px; }
+nav a:hover { color: var(--green); }
+.savedButton, .sortButton { border: 1px solid var(--line); background: transparent; border-radius: 99px; padding: 9px 14px; cursor: pointer; }
+.savedButton span { background: var(--lime); border-radius: 50%; padding: 2px 7px; margin-left: 4px; }
+.hero { padding: 88px 5vw 72px; background: radial-gradient(circle at 85% 20%, rgba(217,242,96,.28), transparent 28%), var(--paper); }
+.eyebrow, .sectionLabel { text-transform: uppercase; letter-spacing: 1.8px; font-size: 11px; font-weight: 750; color: var(--green); }
+.eyebrow span { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 4px rgba(217,242,96,.25); }
+.hero h1 { max-width: 830px; margin: 18px 0; font-size: clamp(58px, 8vw, 112px); line-height: .88; letter-spacing: -6px; font-weight: 650; }
+.hero h1 em { font-family: var(--font-serif); font-weight: 400; color: var(--green); }
+.hero > p { max-width: 650px; font-size: 18px; line-height: 1.65; color: var(--muted); }
+.searchBox { max-width: 850px; margin-top: 36px; padding: 8px 8px 8px 22px; display: flex; align-items: end; background: white; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(23,33,28,.08); }
+.searchBox label { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.searchBox label span { font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.searchBox input { border: 0; outline: 0; padding: 4px 0; font-size: 16px; color: var(--ink); }
+.searchBox button { border: 0; border-radius: 8px; padding: 18px 24px; color: white; background: var(--green); cursor: pointer; font-weight: 650; }
+.trustLine { margin-top: 24px; display: flex; gap: 28px; font-size: 12px; color: var(--muted); }
+.trustLine b { color: var(--ink); }
+.workspace { display: grid; grid-template-columns: 230px 1fr; gap: 44px; padding: 64px 5vw 90px; background: #fff; border-top: 1px solid var(--line); }
+aside { padding-right: 30px; border-right: 1px solid var(--line); }
+.filterGroup { padding: 20px 0; border-bottom: 1px solid var(--line); }
+.filterGroup h3 { margin: 0 0 13px; font-size: 13px; }
+.check { display: flex; gap: 9px; margin: 10px 0; font-size: 13px; color: var(--muted); cursor: pointer; }
+.check input { accent-color: var(--green); }
+.filterGroup input[type="range"] { width: 100%; accent-color: var(--green); }
+.rangeLabels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+.resultsHeader { display: flex; justify-content: space-between; align-items: end; margin-bottom: 28px; }
+.resultsHeader h2, .how h2 { margin: 6px 0 0; font-family: var(--font-serif); font-size: 38px; font-weight: 400; }
+.jobList { display: grid; gap: 12px; }
+.jobCard { display: grid; grid-template-columns: 72px 1fr 150px; gap: 22px; padding: 24px; border: 1px solid var(--line); border-radius: 10px; transition: transform .2s, box-shadow .2s; }
+.jobCard:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(23,33,28,.07); }
+.score { width: 64px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; border: 5px solid var(--lime); background: #f9fbe9; }
+.score strong { font-size: 20px; line-height: 1; }
+.score span { font-size: 8px; text-transform: uppercase; color: var(--muted); }
+.jobMeta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.jobMeta span:not(:last-child)::after { content: "·"; margin-left: 8px; }
+.jobMeta .source { color: #735cff; font-weight: 750; }
+.jobMeta .source.reddit { color: #ed5b35; }
+.jobBody h3 { margin: 10px 0 7px; font-size: 18px; letter-spacing: -.3px; }
+.jobBody > p { margin: 0; max-width: 680px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.tagRow { display: flex; gap: 6px; margin-top: 14px; }
+.tagRow span { padding: 5px 8px; border-radius: 4px; background: var(--cream); font-size: 10px; }
+.jobAction { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; font-size: 12px; }
+.jobAction button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 50%; background: white; cursor: pointer; font-size: 18px; }
+.jobAction a { margin-top: auto; color: var(--green); font-weight: 700; }
+.how { padding: 88px 5vw; background: var(--ink); color: white; }
+.how .sectionLabel { color: var(--lime); }
+.how h2 { font-size: clamp(42px, 5vw, 70px); }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 50px; margin-top: 55px; }
+.steps div { border-top: 1px solid #536058; padding-top: 18px; }
+.steps b { color: var(--lime); font-size: 11px; }
+.steps h3 { font-family: var(--font-serif); font-size: 28px; font-weight: 400; margin: 22px 0 8px; }
+.steps p { color: #aeb8b2; line-height: 1.6; font-size: 13px; }
+footer { padding: 34px 5vw; display: flex; align-items: center; gap: 30px; font-size: 12px; color: var(--muted); }
+footer span { color: var(--ink); font-weight: 800; font-size: 18px; }
+footer small { margin-left: auto; }
+@media (max-width: 800px) { nav a { display: none; } .hero { padding-top: 58px; } .hero h1 { letter-spacing: -3px; } .searchBox { flex-direction: column; align-items: stretch; padding: 16px; gap: 14px; } .trustLine { flex-wrap: wrap; gap: 10px 20px; } .workspace { grid-template-columns: 1fr; } aside { display: none; } .jobCard { grid-template-columns: 58px 1fr; padding: 17px; gap: 14px; } .jobAction { grid-column: 2; flex-direction: row; align-items: center; } .jobAction a { margin: 0 0 0 auto; } .score { width: 54px; height: 54px; } .steps { grid-template-columns: 1fr; gap: 20px; } footer { align-items: flex-start; flex-direction: column; gap: 8px; } footer small { margin: 0; } }
