@@ -4,7 +4,7 @@ ScoreScout is a portfolio web application that helps composers and music creator
 
 ## Current milestone
 
-The first milestone establishes the product identity and a responsive opportunity dashboard. The listings are demonstration data while source integrations are developed incrementally.
+The current milestone establishes the product identity, a responsive opportunity dashboard, and a typed opportunity model with deterministic relevance scoring. The listings are demonstration data while source integrations are developed incrementally.
 
 ## Product direction
 
@@ -28,7 +28,7 @@ Create a production build with `npm run build`.
 ## Roadmap
 
 1. Responsive interface and product identity
-2. Data model and opportunity scoring
+2. Data model and opportunity scoring ✓
 3. Reddit collector
 4. Search and working filters
 5. Saved opportunities and application tracking

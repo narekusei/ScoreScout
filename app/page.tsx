@@ -1,35 +1,10 @@
-const jobs = [
-  {
-    score: 96,
-    title: "Composer needed for a narrative indie game",
-    description: "Small studio looking for an original atmospheric score. Paid contract, 8–10 tracks.",
-    source: "Reddit",
-    place: "r/gameDevClassifieds",
-    budget: "$1,200–$2,000",
-    age: "2h ago",
-    tags: ["Game music", "Paid", "Remote"],
-  },
-  {
-    score: 88,
-    title: "Original score for a 12-minute short film",
-    description: "Director seeking a composer for a festival-bound drama. References and timeline included.",
-    source: "ProductionHub",
-    place: "Film & TV",
-    budget: "$600 fixed",
-    age: "5h ago",
-    tags: ["Film score", "Paid", "Deadline"],
-  },
-  {
-    score: 79,
-    title: "Sound designer and composer for mobile puzzle game",
-    description: "Early-stage team needs UI sounds and a short adaptive soundtrack. Budget to be discussed.",
-    source: "Reddit",
-    place: "r/INAT",
-    budget: "Budget unclear",
-    age: "Yesterday",
-    tags: ["Sound design", "Mobile", "Remote"],
-  },
-];
+import { opportunities } from "../lib/opportunity";
+
+function formatAge(ageHours: number) {
+  if (ageHours < 24) return `${ageHours}h ago`;
+  if (ageHours < 48) return "Yesterday";
+  return `${Math.floor(ageHours / 24)}d ago`;
+}
 
 export default function Home() {
   return (
@@ -91,16 +66,16 @@ export default function Home() {
             <button type="button" className="sortButton">Best match ↓</button>
           </div>
           <div className="jobList">
-            {jobs.map((job) => (
-              <article className="jobCard" key={job.title}>
-                <div className="score" aria-label={`${job.score}% match`}><strong>{job.score}</strong><span>% match</span></div>
+            {opportunities.map((job) => (
+              <article className="jobCard" key={job.id}>
+                <div className="score" aria-label={`${job.score}% match`} title={job.scoreReasons.join(", ")}><strong>{job.score}</strong><span>% match</span></div>
                 <div className="jobBody">
-                  <div className="jobMeta"><span className={`source ${job.source === 'Reddit' ? 'reddit' : ''}`}>{job.source}</span><span>{job.place}</span><span>{job.age}</span></div>
+                  <div className="jobMeta"><span className={`source ${job.source === 'Reddit' ? 'reddit' : ''}`}>{job.source}</span><span>{job.community}</span><span>{formatAge(job.ageHours)}</span></div>
                   <h3>{job.title}</h3>
                   <p>{job.description}</p>
                   <div className="tagRow">{job.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
                 </div>
-                <div className="jobAction"><strong>{job.budget}</strong><button type="button" aria-label={`Save ${job.title}`}>♡</button><a href="#">View post ↗</a></div>
+                <div className="jobAction"><strong>{job.budgetLabel}</strong><button type="button" aria-label={`Save ${job.title}`}>♡</button><a href={job.url}>View post ↗</a></div>
               </article>
             ))}
           </div>
