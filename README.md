@@ -4,7 +4,7 @@ ScoreScout is a portfolio web application that helps composers and music creator
 
 ## Current milestone
 
-The current milestone includes the product identity, a responsive opportunity dashboard, deterministic relevance scoring, and an OAuth-based Reddit collector. The interface still uses demonstration data until the collector is wired into a server route.
+The current milestone includes the product identity, a responsive opportunity dashboard, deterministic relevance scoring, an OAuth-based Reddit collector, and a server-only opportunities endpoint. The interface still uses demonstration data until the dashboard starts requesting that endpoint.
 
 ## Product direction
 
@@ -29,14 +29,14 @@ Create a production build with `npm run build`.
 
 ScoreScout uses Reddit's official OAuth API and never stores API credentials in source control. Copy `.env.example` to `.env.local`, add credentials for your Reddit application, and keep the local file private.
 
-The collector currently handles authentication, searches selected communities, limits result counts, and converts Reddit posts into the shared `Opportunity` model. Connecting it to the dashboard is the next integration step.
+The collector handles authentication, searches selected communities, limits result counts, and converts Reddit posts into the shared `Opportunity` model. The `GET /api/opportunities` endpoint keeps credentials on the server, scores the collected posts, removes weak matches, and returns at most 30 results. An optional `q` query parameter can override the default music-job search.
 
 ## Roadmap
 
 1. Responsive interface and product identity
 2. Data model and opportunity scoring ✓
-3. Reddit collector foundation ✓
-4. Search and working filters
+3. Reddit collector and server endpoint ✓
+4. Dashboard data loading, search, and working filters
 5. Saved opportunities and application tracking
 6. Additional compliant data sources
 
