@@ -4,7 +4,7 @@ ScoreScout is a portfolio web application that helps composers and music creator
 
 ## Current milestone
 
-The current milestone includes the product identity, a responsive opportunity dashboard, deterministic relevance scoring, an OAuth-based Reddit collector, and a server-only opportunities endpoint. The interface still uses demonstration data until the dashboard starts requesting that endpoint.
+The current milestone includes the product identity, a responsive opportunity dashboard, deterministic relevance scoring, an OAuth-based Reddit collector, and live dashboard search through a server-only endpoint. Demonstration cards remain available before the first search and when showcasing the project without credentials.
 
 ## Product direction
 
@@ -36,7 +36,7 @@ The collector handles authentication, searches selected communities, limits resu
 1. Responsive interface and product identity
 2. Data model and opportunity scoring ✓
 3. Reddit collector and server endpoint ✓
-4. Dashboard data loading, search, and working filters
+4. Dashboard data loading and search ✓; working filters next
 5. Saved opportunities and application tracking
 6. Additional compliant data sources
 

@@ -24,6 +24,10 @@ nav a:hover { color: var(--green); }
 .searchBox label span { font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 .searchBox input { border: 0; outline: 0; padding: 4px 0; font-size: 16px; color: var(--ink); }
 .searchBox button { border: 0; border-radius: 8px; padding: 18px 24px; color: white; background: var(--green); cursor: pointer; font-weight: 650; }
+.searchBox button:disabled { cursor: wait; opacity: .7; }
+.searchStatus { min-height: 18px; margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+.searchStatus.live { color: var(--green); font-weight: 650; }
+.searchStatus.error { color: #a33b2b; }
 .trustLine { margin-top: 24px; display: flex; gap: 28px; font-size: 12px; color: var(--muted); }
 .trustLine b { color: var(--ink); }
 .workspace { display: grid; grid-template-columns: 230px 1fr; gap: 44px; padding: 64px 5vw 90px; background: #fff; border-top: 1px solid var(--line); }
@@ -37,6 +41,9 @@ aside { padding-right: 30px; border-right: 1px solid var(--line); }
 .resultsHeader { display: flex; justify-content: space-between; align-items: end; margin-bottom: 28px; }
 .resultsHeader h2, .how h2 { margin: 6px 0 0; font-family: var(--font-serif); font-size: 38px; font-weight: 400; }
 .jobList { display: grid; gap: 12px; }
+.emptyState { padding: 42px; border: 1px dashed var(--line); border-radius: 10px; text-align: center; color: var(--muted); }
+.emptyState strong { color: var(--ink); }
+.emptyState p { margin: 8px 0 0; font-size: 13px; }
 .jobCard { display: grid; grid-template-columns: 72px 1fr 150px; gap: 22px; padding: 24px; border: 1px solid var(--line); border-radius: 10px; transition: transform .2s, box-shadow .2s; }
 .jobCard:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(23,33,28,.07); }
 .score { width: 64px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; border: 5px solid var(--lime); background: #f9fbe9; }

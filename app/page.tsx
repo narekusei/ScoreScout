@@ -1,4 +1,13 @@
-import { opportunities } from "../lib/opportunity";
+"use client";
+
+import { FormEvent, useState } from "react";
+import { opportunities as demoOpportunities, type ScoredOpportunity } from "../lib/opportunity";
+
+type OpportunitiesResponse = {
+  opportunities?: ScoredOpportunity[];
+  message?: string;
+  meta?: { collected: number; returned: number };
+};
 
 function formatAge(ageHours: number) {
   if (ageHours < 24) return `${ageHours}h ago`;
@@ -7,6 +16,45 @@ function formatAge(ageHours: number) {
 }
 
 export default function Home() {
+  const [query, setQuery] = useState("composer, game music, film score");
+  const [jobs, setJobs] = useState<ScoredOpportunity[]>(demoOpportunities);
+  const [status, setStatus] = useState<"demo" | "loading" | "live" | "error">("demo");
+  const [notice, setNotice] = useState("Showing demonstration opportunities");
+
+  async function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery || status === "loading") return;
+
+    setStatus("loading");
+    setNotice("Scouting Reddit for fresh opportunities…");
+
+    try {
+      const response = await fetch(`/api/opportunities?q=${encodeURIComponent(trimmedQuery)}`);
+      const payload = (await response.json()) as OpportunitiesResponse;
+
+      if (!response.ok) {
+        throw new Error(
+          response.status === 503
+            ? "Reddit is not configured yet. Add the server credentials to enable live search."
+            : payload.message || "Live search is temporarily unavailable.",
+        );
+      }
+
+      const results = payload.opportunities ?? [];
+      setJobs(results);
+      setStatus("live");
+      setNotice(
+        results.length
+          ? `${results.length} strong matches from ${payload.meta?.collected ?? results.length} posts checked`
+          : "No strong matches found. Try a broader search.",
+      );
+    } catch (error) {
+      setStatus("error");
+      setNotice(error instanceof Error ? error.message : "Live search is temporarily unavailable.");
+    }
+  }
+
   return (
     <main>
       <header className="topbar">
@@ -25,17 +73,18 @@ export default function Home() {
         <div className="eyebrow"><span /> Built for composers</div>
         <h1>Find the work.<br /><em>Write the music.</em></h1>
         <p>ScoreScout searches creative communities for genuine, paid opportunities — so musicians spend less time scrolling and more time composing.</p>
-        <div className="searchBox">
+        <form className="searchBox" onSubmit={handleSearch}>
           <label>
             <span>What are you looking for?</span>
-            <input defaultValue="composer, game music, film score" aria-label="Search keywords" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search keywords" maxLength={120} />
           </label>
-          <button type="button">Scout opportunities</button>
-        </div>
+          <button type="submit" disabled={status === "loading"}>{status === "loading" ? "Scouting…" : "Scout opportunities"}</button>
+        </form>
+        <p className={`searchStatus ${status}`} role="status" aria-live="polite">{notice}</p>
         <div className="trustLine">
-          <span><b>12</b> sources monitored</span>
-          <span><b>247</b> posts scanned today</span>
-          <span><b>18</b> strong matches</span>
+          <span><b>1</b> official source connected</span>
+          <span><b>{jobs.length}</b> matches shown</span>
+          <span><b>{status === "live" ? "Live" : "Demo"}</b> data mode</span>
         </div>
       </section>
 
@@ -66,7 +115,7 @@ export default function Home() {
             <button type="button" className="sortButton">Best match ↓</button>
           </div>
           <div className="jobList">
-            {opportunities.map((job) => (
+            {jobs.map((job) => (
               <article className="jobCard" key={job.id}>
                 <div className="score" aria-label={`${job.score}% match`} title={job.scoreReasons.join(", ")}><strong>{job.score}</strong><span>% match</span></div>
                 <div className="jobBody">
@@ -78,6 +127,7 @@ export default function Home() {
                 <div className="jobAction"><strong>{job.budgetLabel}</strong><button type="button" aria-label={`Save ${job.title}`}>♡</button><a href={job.url}>View post ↗</a></div>
               </article>
             ))}
+            {!jobs.length && <div className="emptyState"><strong>No opportunities found</strong><p>Try fewer keywords or a broader role such as composer or sound designer.</p></div>}
           </div>
         </div>
       </section>
