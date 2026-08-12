@@ -3,6 +3,16 @@
 import { FormEvent, useState } from "react";
 import { opportunities as demoOpportunities, type ScoredOpportunity } from "../lib/opportunity";
 
+const disciplines = ["Composition", "Game audio", "Film scoring", "Sound design"] as const;
+type Discipline = (typeof disciplines)[number];
+
+const disciplineTerms: Record<Discipline, string[]> = {
+  Composition: ["composer", "composition", "music"],
+  "Game audio": ["game", "interactive", "adaptive"],
+  "Film scoring": ["film", "score", "soundtrack", "cinematic"],
+  "Sound design": ["sound design", "sound designer", "audio", "ui sounds"],
+};
+
 type OpportunitiesResponse = {
   opportunities?: ScoredOpportunity[];
   message?: string;
@@ -20,6 +30,47 @@ export default function Home() {
   const [jobs, setJobs] = useState<ScoredOpportunity[]>(demoOpportunities);
   const [status, setStatus] = useState<"demo" | "loading" | "live" | "error">("demo");
   const [notice, setNotice] = useState("Showing demonstration opportunities");
+  const [selectedDisciplines, setSelectedDisciplines] = useState<Discipline[]>([...disciplines]);
+  const [paidOnly, setPaidOnly] = useState(false);
+  const [budgetSpecified, setBudgetSpecified] = useState(false);
+  const [minimumScore, setMinimumScore] = useState(40);
+  const [sortOrder, setSortOrder] = useState<"match" | "recent">("match");
+
+  const visibleJobs = jobs
+    .filter((job) => {
+      const text = `${job.title} ${job.description} ${job.tags.join(" ")}`.toLowerCase();
+      const matchesDiscipline =
+        selectedDisciplines.length === 0 ||
+        selectedDisciplines.some((discipline) =>
+          disciplineTerms[discipline].some((term) => text.includes(term)),
+        );
+      const isPaid = job.budgetLabel !== "Budget unclear" || job.tags.includes("Paid");
+      const hasBudget = /[$€£]\s?\d/.test(job.budgetLabel);
+
+      return (
+        job.score >= minimumScore &&
+        matchesDiscipline &&
+        (!paidOnly || isPaid) &&
+        (!budgetSpecified || hasBudget)
+      );
+    })
+    .sort((a, b) => (sortOrder === "match" ? b.score - a.score : a.ageHours - b.ageHours));
+
+  function toggleDiscipline(discipline: Discipline) {
+    setSelectedDisciplines((current) =>
+      current.includes(discipline)
+        ? current.filter((item) => item !== discipline)
+        : [...current, discipline],
+    );
+  }
+
+  function resetFilters() {
+    setSelectedDisciplines([...disciplines]);
+    setPaidOnly(false);
+    setBudgetSpecified(false);
+    setMinimumScore(40);
+    setSortOrder("match");
+  }
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -83,7 +134,7 @@ export default function Home() {
         <p className={`searchStatus ${status}`} role="status" aria-live="polite">{notice}</p>
         <div className="trustLine">
           <span><b>1</b> official source connected</span>
-          <span><b>{jobs.length}</b> matches shown</span>
+          <span><b>{visibleJobs.length}</b> of {jobs.length} matches shown</span>
           <span><b>{status === "live" ? "Live" : "Demo"}</b> data mode</span>
         </div>
       </section>
@@ -93,29 +144,30 @@ export default function Home() {
           <p className="sectionLabel">Refine results</p>
           <div className="filterGroup">
             <h3>Discipline</h3>
-            {['Composition', 'Game audio', 'Film scoring', 'Sound design'].map((item, index) => (
-              <label className="check" key={item}><input type="checkbox" defaultChecked={index < 2} /><span>{item}</span></label>
+            {disciplines.map((item) => (
+              <label className="check" key={item}><input type="checkbox" checked={selectedDisciplines.includes(item)} onChange={() => toggleDiscipline(item)} /><span>{item}</span></label>
             ))}
           </div>
           <div className="filterGroup">
             <h3>Payment</h3>
-            <label className="check"><input type="checkbox" defaultChecked /><span>Paid only</span></label>
-            <label className="check"><input type="checkbox" /><span>Budget specified</span></label>
+            <label className="check"><input type="checkbox" checked={paidOnly} onChange={(event) => setPaidOnly(event.target.checked)} /><span>Paid only</span></label>
+            <label className="check"><input type="checkbox" checked={budgetSpecified} onChange={(event) => setBudgetSpecified(event.target.checked)} /><span>Budget specified</span></label>
           </div>
           <div className="filterGroup">
             <h3>Minimum match</h3>
-            <input type="range" min="40" max="100" defaultValue="70" aria-label="Minimum match score" />
-            <div className="rangeLabels"><span>40%</span><b>70%</b><span>100%</span></div>
+            <input type="range" min="40" max="100" step="5" value={minimumScore} onChange={(event) => setMinimumScore(Number(event.target.value))} aria-label="Minimum match score" />
+            <div className="rangeLabels"><span>40%</span><b>{minimumScore}%</b><span>100%</span></div>
           </div>
+          <button type="button" className="resetFilters" onClick={resetFilters}>Reset filters</button>
         </aside>
 
         <div className="results">
           <div className="resultsHeader">
             <div><p className="sectionLabel">Today’s shortlist</p><h2>Opportunities worth hearing about</h2></div>
-            <button type="button" className="sortButton">Best match ↓</button>
+            <button type="button" className="sortButton" onClick={() => setSortOrder((current) => current === "match" ? "recent" : "match")} aria-label={`Sort by ${sortOrder === "match" ? "most recent" : "best match"}`}>{sortOrder === "match" ? "Best match ↓" : "Most recent ↓"}</button>
           </div>
           <div className="jobList">
-            {jobs.map((job) => (
+            {visibleJobs.map((job) => (
               <article className="jobCard" key={job.id}>
                 <div className="score" aria-label={`${job.score}% match`} title={job.scoreReasons.join(", ")}><strong>{job.score}</strong><span>% match</span></div>
                 <div className="jobBody">
@@ -127,7 +179,7 @@ export default function Home() {
                 <div className="jobAction"><strong>{job.budgetLabel}</strong><button type="button" aria-label={`Save ${job.title}`}>♡</button><a href={job.url}>View post ↗</a></div>
               </article>
             ))}
-            {!jobs.length && <div className="emptyState"><strong>No opportunities found</strong><p>Try fewer keywords or a broader role such as composer or sound designer.</p></div>}
+            {!visibleJobs.length && <div className="emptyState"><strong>No opportunities match these filters</strong><p>Lower the minimum score, select more disciplines, or reset the filters.</p><button type="button" onClick={resetFilters}>Reset filters</button></div>}
           </div>
         </div>
       </section>

@@ -36,7 +36,7 @@ The collector handles authentication, searches selected communities, limits resu
 1. Responsive interface and product identity
 2. Data model and opportunity scoring ✓
 3. Reddit collector and server endpoint ✓
-4. Dashboard data loading and search ✓; working filters next
+4. Dashboard data loading, search, filters, and sorting ✓
 5. Saved opportunities and application tracking
 6. Additional compliant data sources
 
