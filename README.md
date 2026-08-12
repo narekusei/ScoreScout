@@ -2,6 +2,10 @@
 
 ScoreScout is a portfolio web application that helps composers and music creators find relevant paid opportunities without manually scrolling through communities and job boards.
 
+## Live demo
+
+[Open ScoreScout on Vercel](https://scorescout.vercel.app)
+
 ## Current milestone
 
 The current milestone includes the product identity, a responsive opportunity dashboard, deterministic relevance scoring, an OAuth-based Reddit collector, and live dashboard search through a server-only endpoint. Demonstration cards remain available before the first search and when showcasing the project without credentials.
@@ -23,7 +27,7 @@ npm install
 npm run dev
 ```
 
-Create a production build with `npm run build`.
+Create a production build with `npm run build`. The standard Next.js build is compatible with Vercel deployments.
 
 ## Reddit setup
 

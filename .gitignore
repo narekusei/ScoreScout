@@ -25,6 +25,9 @@
 # debug
 npm-debug.log*
 /.npm-cache/
+/.npm-cache-vercel/
+/.vercel-runtime/
+/%SystemDrive%/
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
