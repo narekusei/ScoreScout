@@ -13,6 +13,7 @@ nav { display: flex; align-items: center; gap: 28px; font-size: 14px; }
 nav a:hover { color: var(--green); }
 .savedButton, .sortButton { border: 1px solid var(--line); background: transparent; border-radius: 99px; padding: 9px 14px; cursor: pointer; }
 .savedButton span { background: var(--lime); border-radius: 50%; padding: 2px 7px; margin-left: 4px; }
+.savedButton[aria-pressed="true"] { border-color: var(--green); color: var(--green); background: #f4f8ec; }
 .hero { padding: 88px 5vw 72px; background: radial-gradient(circle at 85% 20%, rgba(217,242,96,.28), transparent 28%), var(--paper); }
 .eyebrow, .sectionLabel { text-transform: uppercase; letter-spacing: 1.8px; font-size: 11px; font-weight: 750; color: var(--green); }
 .eyebrow span { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 4px rgba(217,242,96,.25); }
@@ -61,6 +62,7 @@ aside { padding-right: 30px; border-right: 1px solid var(--line); }
 .tagRow span { padding: 5px 8px; border-radius: 4px; background: var(--cream); font-size: 10px; }
 .jobAction { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; font-size: 12px; }
 .jobAction button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 50%; background: white; cursor: pointer; font-size: 18px; }
+.jobAction button[aria-pressed="true"] { border-color: var(--green); color: var(--green); background: #f4f8ec; }
 .jobAction a { margin-top: auto; color: var(--green); font-weight: 700; }
 .how { padding: 88px 5vw; background: var(--ink); color: white; }
 .how .sectionLabel { color: var(--lime); }

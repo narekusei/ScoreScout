@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { opportunities as demoOpportunities, type ScoredOpportunity } from "../lib/opportunity";
 
 const disciplines = ["Composition", "Game audio", "Film scoring", "Sound design"] as const;
@@ -12,6 +12,8 @@ const disciplineTerms: Record<Discipline, string[]> = {
   "Film scoring": ["film", "score", "soundtrack", "cinematic"],
   "Sound design": ["sound design", "sound designer", "audio", "ui sounds"],
 };
+
+const savedStorageKey = "scorescout:saved-opportunities";
 
 type OpportunitiesResponse = {
   opportunities?: ScoredOpportunity[];
@@ -35,6 +37,26 @@ export default function Home() {
   const [budgetSpecified, setBudgetSpecified] = useState(false);
   const [minimumScore, setMinimumScore] = useState(40);
   const [sortOrder, setSortOrder] = useState<"match" | "recent">("match");
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedOnly, setSavedOnly] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    try {
+      const saved = window.localStorage.getItem(savedStorageKey);
+      const parsed = saved ? (JSON.parse(saved) as string[]) : [];
+      queueMicrotask(() => {
+        if (!cancelled) setSavedIds(parsed);
+      });
+    } catch {
+      window.localStorage.removeItem(savedStorageKey);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const visibleJobs = jobs
     .filter((job) => {
@@ -51,7 +73,8 @@ export default function Home() {
         job.score >= minimumScore &&
         matchesDiscipline &&
         (!paidOnly || isPaid) &&
-        (!budgetSpecified || hasBudget)
+        (!budgetSpecified || hasBudget) &&
+        (!savedOnly || savedIds.includes(job.id))
       );
     })
     .sort((a, b) => (sortOrder === "match" ? b.score - a.score : a.ageHours - b.ageHours));
@@ -70,6 +93,17 @@ export default function Home() {
     setBudgetSpecified(false);
     setMinimumScore(40);
     setSortOrder("match");
+    setSavedOnly(false);
+  }
+
+  function toggleSaved(id: string) {
+    setSavedIds((current) => {
+      const next = current.includes(id)
+        ? current.filter((savedId) => savedId !== id)
+        : [...current, id];
+      window.localStorage.setItem(savedStorageKey, JSON.stringify(next));
+      return next;
+    });
   }
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -116,7 +150,7 @@ export default function Home() {
         <nav aria-label="Main navigation">
           <a href="#jobs">Opportunities</a>
           <a href="#how">How it works</a>
-          <button type="button" className="savedButton">Saved <span>3</span></button>
+          <button type="button" className="savedButton" aria-pressed={savedOnly} onClick={() => setSavedOnly((current) => !current)}>Saved <span>{savedIds.length}</span></button>
         </nav>
       </header>
 
@@ -176,10 +210,10 @@ export default function Home() {
                   <p>{job.description}</p>
                   <div className="tagRow">{job.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
                 </div>
-                <div className="jobAction"><strong>{job.budgetLabel}</strong><button type="button" aria-label={`Save ${job.title}`}>♡</button><a href={job.url}>View post ↗</a></div>
+                <div className="jobAction"><strong>{job.budgetLabel}</strong><button type="button" aria-pressed={savedIds.includes(job.id)} aria-label={`${savedIds.includes(job.id) ? "Remove" : "Save"} ${job.title}`} onClick={() => toggleSaved(job.id)}>{savedIds.includes(job.id) ? "♥" : "♡"}</button><a href={job.url}>View post ↗</a></div>
               </article>
             ))}
-            {!visibleJobs.length && <div className="emptyState"><strong>No opportunities match these filters</strong><p>Lower the minimum score, select more disciplines, or reset the filters.</p><button type="button" onClick={resetFilters}>Reset filters</button></div>}
+            {!visibleJobs.length && <div className="emptyState"><strong>{savedOnly ? "No saved opportunities yet" : "No opportunities match these filters"}</strong><p>{savedOnly ? "Save promising opportunities with the heart button to keep them here." : "Lower the minimum score, select more disciplines, or reset the filters."}</p><button type="button" onClick={resetFilters}>{savedOnly ? "Show all opportunities" : "Reset filters"}</button></div>}
           </div>
         </div>
       </section>

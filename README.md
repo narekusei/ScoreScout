@@ -41,7 +41,7 @@ The collector handles authentication, searches selected communities, limits resu
 2. Data model and opportunity scoring ✓
 3. Reddit collector and server endpoint ✓
 4. Dashboard data loading, search, filters, and sorting ✓
-5. Saved opportunities and application tracking
+5. Saved opportunities ✓; application tracking next
 6. Additional compliant data sources
 
 ## Important
