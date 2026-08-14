@@ -63,6 +63,8 @@ aside { padding-right: 30px; border-right: 1px solid var(--line); }
 .jobAction { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; font-size: 12px; }
 .jobAction button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 50%; background: white; cursor: pointer; font-size: 18px; }
 .jobAction button[aria-pressed="true"] { border-color: var(--green); color: var(--green); background: #f4f8ec; }
+.statusField { display: grid; gap: 4px; width: 100%; color: var(--muted); font-size: 10px; }
+.statusField select { width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: white; font: inherit; }
 .jobAction a { margin-top: auto; color: var(--green); font-weight: 700; }
 .how { padding: 88px 5vw; background: var(--ink); color: white; }
 .how .sectionLabel { color: var(--lime); }

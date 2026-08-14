@@ -14,6 +14,9 @@ const disciplineTerms: Record<Discipline, string[]> = {
 };
 
 const savedStorageKey = "scorescout:saved-opportunities";
+const statusStorageKey = "scorescout:application-statuses";
+const applicationStatuses = ["Saved", "Applied", "Interview", "Won", "Rejected"] as const;
+type ApplicationStatus = (typeof applicationStatuses)[number];
 
 type OpportunitiesResponse = {
   opportunities?: ScoredOpportunity[];
@@ -39,18 +42,27 @@ export default function Home() {
   const [sortOrder, setSortOrder] = useState<"match" | "recent">("match");
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [savedOnly, setSavedOnly] = useState(false);
+  const [jobStatuses, setJobStatuses] = useState<Record<string, ApplicationStatus>>({});
 
   useEffect(() => {
     let cancelled = false;
 
     try {
       const saved = window.localStorage.getItem(savedStorageKey);
+      const statuses = window.localStorage.getItem(statusStorageKey);
       const parsed = saved ? (JSON.parse(saved) as string[]) : [];
+      const parsedStatuses = statuses
+        ? (JSON.parse(statuses) as Record<string, ApplicationStatus>)
+        : {};
       queueMicrotask(() => {
-        if (!cancelled) setSavedIds(parsed);
+        if (!cancelled) {
+          setSavedIds(parsed);
+          setJobStatuses(parsedStatuses);
+        }
       });
     } catch {
       window.localStorage.removeItem(savedStorageKey);
+      window.localStorage.removeItem(statusStorageKey);
     }
 
     return () => {
@@ -98,10 +110,24 @@ export default function Home() {
 
   function toggleSaved(id: string) {
     setSavedIds((current) => {
-      const next = current.includes(id)
-        ? current.filter((savedId) => savedId !== id)
-        : [...current, id];
+      const removing = current.includes(id);
+      const next = removing ? current.filter((savedId) => savedId !== id) : [...current, id];
       window.localStorage.setItem(savedStorageKey, JSON.stringify(next));
+      setJobStatuses((statuses) => {
+        const updated = { ...statuses };
+        if (removing) delete updated[id];
+        else updated[id] = "Saved";
+        window.localStorage.setItem(statusStorageKey, JSON.stringify(updated));
+        return updated;
+      });
+      return next;
+    });
+  }
+
+  function updateJobStatus(id: string, status: ApplicationStatus) {
+    setJobStatuses((current) => {
+      const next = { ...current, [id]: status };
+      window.localStorage.setItem(statusStorageKey, JSON.stringify(next));
       return next;
     });
   }
@@ -210,7 +236,12 @@ export default function Home() {
                   <p>{job.description}</p>
                   <div className="tagRow">{job.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
                 </div>
-                <div className="jobAction"><strong>{job.budgetLabel}</strong><button type="button" aria-pressed={savedIds.includes(job.id)} aria-label={`${savedIds.includes(job.id) ? "Remove" : "Save"} ${job.title}`} onClick={() => toggleSaved(job.id)}>{savedIds.includes(job.id) ? "♥" : "♡"}</button><a href={job.url}>View post ↗</a></div>
+                <div className="jobAction">
+                  <strong>{job.budgetLabel}</strong>
+                  <button type="button" aria-pressed={savedIds.includes(job.id)} aria-label={`${savedIds.includes(job.id) ? "Remove" : "Save"} ${job.title}`} onClick={() => toggleSaved(job.id)}>{savedIds.includes(job.id) ? "♥" : "♡"}</button>
+                  {savedIds.includes(job.id) && <label className="statusField"><span>Status</span><select value={jobStatuses[job.id] ?? "Saved"} onChange={(event) => updateJobStatus(job.id, event.target.value as ApplicationStatus)} aria-label={`Application status for ${job.title}`}>{applicationStatuses.map((applicationStatus) => <option key={applicationStatus}>{applicationStatus}</option>)}</select></label>}
+                  <a href={job.url}>View post ↗</a>
+                </div>
               </article>
             ))}
             {!visibleJobs.length && <div className="emptyState"><strong>{savedOnly ? "No saved opportunities yet" : "No opportunities match these filters"}</strong><p>{savedOnly ? "Save promising opportunities with the heart button to keep them here." : "Lower the minimum score, select more disciplines, or reset the filters."}</p><button type="button" onClick={resetFilters}>{savedOnly ? "Show all opportunities" : "Reset filters"}</button></div>}
