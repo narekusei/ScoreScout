@@ -21,7 +21,7 @@ type ApplicationStatus = (typeof applicationStatuses)[number];
 type OpportunitiesResponse = {
   opportunities?: ScoredOpportunity[];
   message?: string;
-  meta?: { collected: number; returned: number };
+  meta?: { collected: number; returned: number; sources: string[] };
 };
 
 function formatAge(ageHours: number) {
@@ -35,6 +35,7 @@ export default function Home() {
   const [jobs, setJobs] = useState<ScoredOpportunity[]>(demoOpportunities);
   const [status, setStatus] = useState<"demo" | "loading" | "live" | "error">("demo");
   const [notice, setNotice] = useState("Showing demonstration opportunities");
+  const [sourceCount, setSourceCount] = useState(1);
   const [selectedDisciplines, setSelectedDisciplines] = useState<Discipline[]>([...disciplines]);
   const [paidOnly, setPaidOnly] = useState(false);
   const [budgetSpecified, setBudgetSpecified] = useState(false);
@@ -138,7 +139,7 @@ export default function Home() {
     if (!trimmedQuery || status === "loading") return;
 
     setStatus("loading");
-    setNotice("Scouting Reddit for fresh opportunities…");
+    setNotice("Scouting connected sources for fresh opportunities…");
 
     try {
       const response = await fetch(`/api/opportunities?q=${encodeURIComponent(trimmedQuery)}`);
@@ -147,13 +148,14 @@ export default function Home() {
       if (!response.ok) {
         throw new Error(
           response.status === 503
-            ? "Reddit is not configured yet. Add the server credentials to enable live search."
+            ? "No live sources are configured yet. Add Reddit credentials or public RSS feeds."
             : payload.message || "Live search is temporarily unavailable.",
         );
       }
 
       const results = payload.opportunities ?? [];
       setJobs(results);
+      setSourceCount(payload.meta?.sources.length ?? 1);
       setStatus("live");
       setNotice(
         results.length
@@ -193,7 +195,7 @@ export default function Home() {
         </form>
         <p className={`searchStatus ${status}`} role="status" aria-live="polite">{notice}</p>
         <div className="trustLine">
-          <span><b>1</b> official source connected</span>
+          <span><b>{sourceCount}</b> compliant {sourceCount === 1 ? "source" : "sources"} configured</span>
           <span><b>{visibleJobs.length}</b> of {jobs.length} matches shown</span>
           <span><b>{status === "live" ? "Live" : "Demo"}</b> data mode</span>
         </div>

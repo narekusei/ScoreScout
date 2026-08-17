@@ -35,6 +35,10 @@ ScoreScout uses Reddit's official OAuth API and never stores API credentials in 
 
 The collector handles authentication, searches selected communities, limits result counts, and converts Reddit posts into the shared `Opportunity` model. The `GET /api/opportunities` endpoint keeps credentials on the server, scores the collected posts, removes weak matches, and returns at most 30 results. An optional `q` query parameter can override the default music-job search.
 
+## RSS and Atom setup
+
+ScoreScout can also read publisher-provided RSS or Atom feeds without scraping web pages. Set `RSS_FEED_URLS` to a comma-separated list of up to five public HTTPS feed URLs. The server limits feed size, normalizes entries into the shared opportunity model, removes duplicate links, and combines them with Reddit results. Feed URLs containing private tokens should not be used.
+
 ## Roadmap
 
 1. Responsive interface and product identity
