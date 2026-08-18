@@ -148,7 +148,8 @@ export default function Home() {
       if (!response.ok) {
         throw new Error(
           response.status === 503
-            ? "No live sources are configured yet. Add Reddit credentials or public RSS feeds."
+            ? "No live sources are configured yet. Add Reddit credentials, public RSS feeds, " +
+              "or Greenhouse board tokens."
             : payload.message || "Live search is temporarily unavailable.",
         );
       }

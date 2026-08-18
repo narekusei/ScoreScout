@@ -11,6 +11,7 @@
     "start": "next start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "test:rss": "tsx --test tests/rss-collector.test.ts",
+    "test:greenhouse": "tsx --test tests/greenhouse-collector.test.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

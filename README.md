@@ -39,6 +39,10 @@ The collector handles authentication, searches selected communities, limits resu
 
 ScoreScout can also read publisher-provided RSS or Atom feeds without scraping web pages. Set `RSS_FEED_URLS` to a comma-separated list of up to five public HTTPS feed URLs. The server limits feed size, normalizes entries into the shared opportunity model, removes duplicate links, and combines them with Reddit results. Feed URLs containing private tokens should not be used.
 
+## Greenhouse setup
+
+ScoreScout supports the public Greenhouse Job Board API, which does not require credentials for published jobs. Set `GREENHOUSE_BOARD_TOKENS` to a comma-separated list of up to five tokens from company Greenhouse board URLs. The server only calls Greenhouse's fixed HTTPS API host, limits response size, and combines normalized jobs with the other configured sources.
+
 ## Roadmap
 
 1. Responsive interface and product identity

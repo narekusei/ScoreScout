@@ -1,6 +1,10 @@
 import { collectRedditOpportunities, RedditCollectorError } from "../../../collectors/reddit";
 import { collectRssOpportunities, RssCollectorError } from "../../../collectors/rss";
-import { scoreOpportunity } from "../../../lib/opportunity";
+import {
+  collectGreenhouseOpportunities,
+  GreenhouseCollectorError,
+} from "../../../collectors/greenhouse";
+import { scoreOpportunity, type Opportunity } from "../../../lib/opportunity";
 
 const DEFAULT_QUERY = 'composer OR "game music" OR soundtrack OR "film score"';
 const COMMUNITIES = ["gameDevClassifieds", "INAT", "MusicJobs", "GameAudio"];
@@ -27,14 +31,22 @@ function getRssFeedUrls() {
     .filter(Boolean);
 }
 
+function getGreenhouseBoardTokens() {
+  return (process.env.GREENHOUSE_BOARD_TOKENS ?? "")
+    .split(/[,\n]/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export async function GET(request: Request) {
   const credentials = getCredentials();
   const rssFeedUrls = getRssFeedUrls();
+  const greenhouseBoardTokens = getGreenhouseBoardTokens();
   const redditConfigured = Boolean(
     credentials.clientId && credentials.clientSecret && credentials.userAgent,
   );
 
-  if (!redditConfigured && !rssFeedUrls.length) {
+  if (!redditConfigured && !rssFeedUrls.length && !greenhouseBoardTokens.length) {
     return json(
       {
         error: "sources_not_configured",
@@ -49,7 +61,7 @@ export async function GET(request: Request) {
 
   const collectors: Array<{
     source: string;
-    run: () => Promise<Awaited<ReturnType<typeof collectRedditOpportunities>>>;
+    run: () => Promise<Opportunity[]>;
   }> = [];
   if (redditConfigured) {
     collectors.push({
@@ -64,6 +76,12 @@ export async function GET(request: Request) {
       run: () => collectRssOpportunities({ feedUrls: rssFeedUrls, limit: 50 }),
     });
   }
+  if (greenhouseBoardTokens.length) {
+    collectors.push({
+      source: "Greenhouse",
+      run: () => collectGreenhouseOpportunities({ boardTokens: greenhouseBoardTokens, limit: 50 }),
+    });
+  }
 
   const settled = await Promise.allSettled(collectors.map((collector) => collector.run()));
   const collected = settled.flatMap((result) =>
@@ -76,8 +94,13 @@ export async function GET(request: Request) {
   if (!collected.length && failedSources.length === collectors.length) {
     const firstError = settled.find((result) => result.status === "rejected");
     const reason = firstError?.status === "rejected" ? firstError.reason : undefined;
-    const rateLimited = reason instanceof RedditCollectorError && reason.status === 429;
-    const knownError = reason instanceof RedditCollectorError || reason instanceof RssCollectorError;
+    const rateLimited =
+      (reason instanceof RedditCollectorError || reason instanceof GreenhouseCollectorError) &&
+      reason.status === 429;
+    const knownError =
+      reason instanceof RedditCollectorError ||
+      reason instanceof RssCollectorError ||
+      reason instanceof GreenhouseCollectorError;
 
     return json(
       {

@@ -1,4 +1,4 @@
-export type OpportunitySource = "Reddit" | "RSS" | "ProductionHub" | "Other";
+export type OpportunitySource = "Reddit" | "RSS" | "Greenhouse" | "ProductionHub" | "Other";
 
 export type Opportunity = {
   id: string;
