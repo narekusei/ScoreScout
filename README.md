@@ -56,6 +56,19 @@ ScoreScout supports the official public Lever Postings API, which exposes publis
 5. Saved opportunities and application tracking ✓
 6. Additional compliant data sources ✓
 
+### Next development stages
+
+- [ ] Persist complete saved opportunity snapshots so live jobs survive refreshes
+- [ ] Apply the search query consistently to Reddit, RSS, Greenhouse, and Lever results
+- [ ] Add request timeouts and preserve successful feeds, boards, and sites when siblings fail
+- [ ] Correct Lever freshness, salary scoring, and budget filtering
+- [ ] Add API-route and UI tests for search, partial failures, saved jobs, and statuses
+- [ ] Define a server API and data model for saved opportunities and application statuses
+- [ ] Add Supabase migrations, row-level security, and server-only configuration without secrets
+- [ ] Add user ownership and authentication for private saved opportunities
+- [ ] Move saved opportunities and statuses from localStorage to Supabase with a safe local migration
+- [ ] Verify the complete save, reload, status-update, and deployment flow
+
 ## Important
 
 API credentials must be supplied through environment variables and must never be committed to the repository.
