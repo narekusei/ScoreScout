@@ -43,6 +43,10 @@ ScoreScout can also read publisher-provided RSS or Atom feeds without scraping w
 
 ScoreScout supports the public Greenhouse Job Board API, which does not require credentials for published jobs. Set `GREENHOUSE_BOARD_TOKENS` to a comma-separated list of up to five tokens from company Greenhouse board URLs. The server only calls Greenhouse's fixed HTTPS API host, limits response size, and combines normalized jobs with the other configured sources.
 
+## Lever setup
+
+ScoreScout supports the official public Lever Postings API, which exposes published jobs without credentials. Set `LEVER_SITE_NAMES` to a comma-separated list of up to five company site names from Lever job URLs. The server only calls Lever's fixed HTTPS API host, limits response size, validates hosted job links, and combines normalized jobs with the other configured sources.
+
 ## Roadmap
 
 1. Responsive interface and product identity
@@ -50,7 +54,7 @@ ScoreScout supports the public Greenhouse Job Board API, which does not require 
 3. Reddit collector and server endpoint ✓
 4. Dashboard data loading, search, filters, and sorting ✓
 5. Saved opportunities and application tracking ✓
-6. Additional compliant data sources
+6. Additional compliant data sources ✓
 
 ## Important
 

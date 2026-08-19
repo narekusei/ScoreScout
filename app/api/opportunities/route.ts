@@ -4,6 +4,7 @@ import {
   collectGreenhouseOpportunities,
   GreenhouseCollectorError,
 } from "../../../collectors/greenhouse";
+import { collectLeverOpportunities, LeverCollectorError } from "../../../collectors/lever";
 import { scoreOpportunity, type Opportunity } from "../../../lib/opportunity";
 
 const DEFAULT_QUERY = 'composer OR "game music" OR soundtrack OR "film score"';
@@ -38,15 +39,28 @@ function getGreenhouseBoardTokens() {
     .filter(Boolean);
 }
 
+function getLeverSiteNames() {
+  return (process.env.LEVER_SITE_NAMES ?? "")
+    .split(/[,\n]/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export async function GET(request: Request) {
   const credentials = getCredentials();
   const rssFeedUrls = getRssFeedUrls();
   const greenhouseBoardTokens = getGreenhouseBoardTokens();
+  const leverSiteNames = getLeverSiteNames();
   const redditConfigured = Boolean(
     credentials.clientId && credentials.clientSecret && credentials.userAgent,
   );
 
-  if (!redditConfigured && !rssFeedUrls.length && !greenhouseBoardTokens.length) {
+  if (
+    !redditConfigured &&
+    !rssFeedUrls.length &&
+    !greenhouseBoardTokens.length &&
+    !leverSiteNames.length
+  ) {
     return json(
       {
         error: "sources_not_configured",
@@ -82,6 +96,12 @@ export async function GET(request: Request) {
       run: () => collectGreenhouseOpportunities({ boardTokens: greenhouseBoardTokens, limit: 50 }),
     });
   }
+  if (leverSiteNames.length) {
+    collectors.push({
+      source: "Lever",
+      run: () => collectLeverOpportunities({ siteNames: leverSiteNames, limit: 50 }),
+    });
+  }
 
   const settled = await Promise.allSettled(collectors.map((collector) => collector.run()));
   const collected = settled.flatMap((result) =>
@@ -95,12 +115,15 @@ export async function GET(request: Request) {
     const firstError = settled.find((result) => result.status === "rejected");
     const reason = firstError?.status === "rejected" ? firstError.reason : undefined;
     const rateLimited =
-      (reason instanceof RedditCollectorError || reason instanceof GreenhouseCollectorError) &&
+      (reason instanceof RedditCollectorError ||
+        reason instanceof GreenhouseCollectorError ||
+        reason instanceof LeverCollectorError) &&
       reason.status === 429;
     const knownError =
       reason instanceof RedditCollectorError ||
       reason instanceof RssCollectorError ||
-      reason instanceof GreenhouseCollectorError;
+      reason instanceof GreenhouseCollectorError ||
+      reason instanceof LeverCollectorError;
 
     return json(
       {
