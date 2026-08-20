@@ -2,6 +2,11 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { opportunities as demoOpportunities, type ScoredOpportunity } from "../lib/opportunity";
+import {
+  mergeOpportunities,
+  parseSavedOpportunities,
+  serializeSavedOpportunities,
+} from "../lib/saved-opportunities";
 
 const disciplines = ["Composition", "Game audio", "Film scoring", "Sound design"] as const;
 type Discipline = (typeof disciplines)[number];
@@ -41,7 +46,7 @@ export default function Home() {
   const [budgetSpecified, setBudgetSpecified] = useState(false);
   const [minimumScore, setMinimumScore] = useState(40);
   const [sortOrder, setSortOrder] = useState<"match" | "recent">("match");
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedJobs, setSavedJobs] = useState<ScoredOpportunity[]>([]);
   const [savedOnly, setSavedOnly] = useState(false);
   const [jobStatuses, setJobStatuses] = useState<Record<string, ApplicationStatus>>({});
 
@@ -51,14 +56,17 @@ export default function Home() {
     try {
       const saved = window.localStorage.getItem(savedStorageKey);
       const statuses = window.localStorage.getItem(statusStorageKey);
-      const parsed = saved ? (JSON.parse(saved) as string[]) : [];
+      const parsed = saved ? parseSavedOpportunities(saved, demoOpportunities) : [];
       const parsedStatuses = statuses
         ? (JSON.parse(statuses) as Record<string, ApplicationStatus>)
         : {};
       queueMicrotask(() => {
         if (!cancelled) {
-          setSavedIds(parsed);
+          setSavedJobs(parsed);
           setJobStatuses(parsedStatuses);
+          if (saved) {
+            window.localStorage.setItem(savedStorageKey, serializeSavedOpportunities(parsed));
+          }
         }
       });
     } catch {
@@ -71,7 +79,9 @@ export default function Home() {
     };
   }, []);
 
-  const visibleJobs = jobs
+  const savedIds = savedJobs.map((job) => job.id);
+  const availableJobs = mergeOpportunities(jobs, savedJobs);
+  const visibleJobs = availableJobs
     .filter((job) => {
       const text = `${job.title} ${job.description} ${job.tags.join(" ")}`.toLowerCase();
       const matchesDiscipline =
@@ -109,15 +119,17 @@ export default function Home() {
     setSavedOnly(false);
   }
 
-  function toggleSaved(id: string) {
-    setSavedIds((current) => {
-      const removing = current.includes(id);
-      const next = removing ? current.filter((savedId) => savedId !== id) : [...current, id];
-      window.localStorage.setItem(savedStorageKey, JSON.stringify(next));
+  function toggleSaved(job: ScoredOpportunity) {
+    setSavedJobs((current) => {
+      const removing = current.some((savedJob) => savedJob.id === job.id);
+      const next = removing
+        ? current.filter((savedJob) => savedJob.id !== job.id)
+        : [...current, job];
+      window.localStorage.setItem(savedStorageKey, serializeSavedOpportunities(next));
       setJobStatuses((statuses) => {
         const updated = { ...statuses };
-        if (removing) delete updated[id];
-        else updated[id] = "Saved";
+        if (removing) delete updated[job.id];
+        else updated[job.id] = "Saved";
         window.localStorage.setItem(statusStorageKey, JSON.stringify(updated));
         return updated;
       });
@@ -197,7 +209,7 @@ export default function Home() {
         <p className={`searchStatus ${status}`} role="status" aria-live="polite">{notice}</p>
         <div className="trustLine">
           <span><b>{sourceCount}</b> compliant {sourceCount === 1 ? "source" : "sources"} configured</span>
-          <span><b>{visibleJobs.length}</b> of {jobs.length} matches shown</span>
+          <span><b>{visibleJobs.length}</b> of {availableJobs.length} matches shown</span>
           <span><b>{status === "live" ? "Live" : "Demo"}</b> data mode</span>
         </div>
       </section>
@@ -241,7 +253,7 @@ export default function Home() {
                 </div>
                 <div className="jobAction">
                   <strong>{job.budgetLabel}</strong>
-                  <button type="button" aria-pressed={savedIds.includes(job.id)} aria-label={`${savedIds.includes(job.id) ? "Remove" : "Save"} ${job.title}`} onClick={() => toggleSaved(job.id)}>{savedIds.includes(job.id) ? "♥" : "♡"}</button>
+                  <button type="button" aria-pressed={savedIds.includes(job.id)} aria-label={`${savedIds.includes(job.id) ? "Remove" : "Save"} ${job.title}`} onClick={() => toggleSaved(job)}>{savedIds.includes(job.id) ? "♥" : "♡"}</button>
                   {savedIds.includes(job.id) && <label className="statusField"><span>Status</span><select value={jobStatuses[job.id] ?? "Saved"} onChange={(event) => updateJobStatus(job.id, event.target.value as ApplicationStatus)} aria-label={`Application status for ${job.title}`}>{applicationStatuses.map((applicationStatus) => <option key={applicationStatus}>{applicationStatus}</option>)}</select></label>}
                   <a href={job.url}>View post ↗</a>
                 </div>

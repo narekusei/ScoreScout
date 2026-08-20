@@ -58,7 +58,7 @@ ScoreScout supports the official public Lever Postings API, which exposes publis
 
 ### Next development stages
 
-- [ ] Persist complete saved opportunity snapshots so live jobs survive refreshes
+- [x] Persist complete saved opportunity snapshots so live jobs survive refreshes
 - [ ] Apply the search query consistently to Reddit, RSS, Greenhouse, and Lever results
 - [ ] Add request timeouts and preserve successful feeds, boards, and sites when siblings fail
 - [ ] Correct Lever freshness, salary scoring, and budget filtering
