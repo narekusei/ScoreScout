@@ -6,6 +6,7 @@ import {
 } from "../../../collectors/greenhouse";
 import { collectLeverOpportunities, LeverCollectorError } from "../../../collectors/lever";
 import { scoreOpportunity, type Opportunity } from "../../../lib/opportunity";
+import { matchesOpportunityQuery } from "../../../lib/opportunity-search";
 
 const DEFAULT_QUERY = 'composer OR "game music" OR soundtrack OR "film score"';
 const COMMUNITIES = ["gameDevClassifieds", "INAT", "MusicJobs", "GameAudio"];
@@ -137,6 +138,7 @@ export async function GET(request: Request) {
 
   const seenUrls = new Set<string>();
   const opportunities = collected
+    .filter((opportunity) => matchesOpportunityQuery(opportunity, query))
     .filter((opportunity) => {
       if (seenUrls.has(opportunity.url)) return false;
       seenUrls.add(opportunity.url);

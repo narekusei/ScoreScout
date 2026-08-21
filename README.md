@@ -33,7 +33,7 @@ Create a production build with `npm run build`. The standard Next.js build is co
 
 ScoreScout uses Reddit's official OAuth API and never stores API credentials in source control. Copy `.env.example` to `.env.local`, add credentials for your Reddit application, and keep the local file private.
 
-The collector handles authentication, searches selected communities, limits result counts, and converts Reddit posts into the shared `Opportunity` model. The `GET /api/opportunities` endpoint keeps credentials on the server, scores the collected posts, removes weak matches, and returns at most 30 results. An optional `q` query parameter can override the default music-job search.
+The collector handles authentication, searches selected communities, limits result counts, and converts Reddit posts into the shared `Opportunity` model. The `GET /api/opportunities` endpoint keeps credentials on the server, applies the same query to results from every configured source, scores the matches, removes weak results, and returns at most 30 opportunities. An optional `q` query parameter can override the default music-job search; commas and `OR` separate alternatives, while quoted text is matched as a phrase.
 
 ## RSS and Atom setup
 
@@ -59,7 +59,7 @@ ScoreScout supports the official public Lever Postings API, which exposes publis
 ### Next development stages
 
 - [x] Persist complete saved opportunity snapshots so live jobs survive refreshes
-- [ ] Apply the search query consistently to Reddit, RSS, Greenhouse, and Lever results
+- [x] Apply the search query consistently to Reddit, RSS, Greenhouse, and Lever results
 - [ ] Add request timeouts and preserve successful feeds, boards, and sites when siblings fail
 - [ ] Correct Lever freshness, salary scoring, and budget filtering
 - [ ] Add API-route and UI tests for search, partial failures, saved jobs, and statuses

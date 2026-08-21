@@ -14,6 +14,7 @@
     "test:greenhouse": "tsx --test tests/greenhouse-collector.test.ts",
     "test:lever": "tsx --test tests/lever-collector.test.ts",
     "test:saved": "tsx --test tests/saved-opportunities.test.ts",
+    "test:search": "tsx --test tests/opportunity-search.test.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
