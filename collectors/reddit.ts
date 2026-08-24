@@ -1,4 +1,5 @@
 import type { Opportunity } from "../lib/opportunity";
+import { requestWithTimeout } from "../lib/fetch-with-timeout";
 
 export type RedditCredentials = {
   clientId: string;
@@ -28,6 +29,8 @@ export type RedditCollectorOptions = {
   limit?: number;
   now?: Date;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  signal?: AbortSignal;
 };
 
 const TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
@@ -72,27 +75,38 @@ export function redditPostToOpportunity(post: RedditPost, now = new Date()): Opp
   };
 }
 
-async function getAccessToken(credentials: RedditCredentials, fetchImpl: typeof fetch) {
-  const response = await fetchImpl(TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${btoa(`${credentials.clientId}:${credentials.clientSecret}`)}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": credentials.userAgent,
+async function getAccessToken(
+  credentials: RedditCredentials,
+  fetchImpl: typeof fetch,
+  timeoutMs?: number,
+  signal?: AbortSignal,
+) {
+  return requestWithTimeout(
+    async (requestSignal) => {
+      const response = await fetchImpl(TOKEN_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(`${credentials.clientId}:${credentials.clientSecret}`)}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": credentials.userAgent,
+        },
+        body: new URLSearchParams({ grant_type: "client_credentials" }),
+        signal: requestSignal,
+      });
+
+      if (!response.ok) {
+        throw new RedditCollectorError("Reddit OAuth authentication failed", response.status);
+      }
+
+      const payload = (await response.json()) as { access_token?: string };
+      if (!payload.access_token) {
+        throw new RedditCollectorError("Reddit OAuth response did not include an access token");
+      }
+
+      return payload.access_token;
     },
-    body: new URLSearchParams({ grant_type: "client_credentials" }),
-  });
-
-  if (!response.ok) {
-    throw new RedditCollectorError("Reddit OAuth authentication failed", response.status);
-  }
-
-  const payload = (await response.json()) as { access_token?: string };
-  if (!payload.access_token) {
-    throw new RedditCollectorError("Reddit OAuth response did not include an access token");
-  }
-
-  return payload.access_token;
+    { timeoutMs, signal },
+  );
 }
 
 export async function collectRedditOpportunities(options: RedditCollectorOptions) {
@@ -101,7 +115,12 @@ export async function collectRedditOpportunities(options: RedditCollectorOptions
 
   if (!communities.length || !query.trim()) return [];
 
-  const accessToken = await getAccessToken(credentials, fetchImpl);
+  const accessToken = await getAccessToken(
+    credentials,
+    fetchImpl,
+    options.timeoutMs,
+    options.signal,
+  );
   const subredditPath = communities.map((name) => name.replace(/^r\//, "")).join("+");
   const params = new URLSearchParams({
     q: query.trim(),
@@ -111,17 +130,23 @@ export async function collectRedditOpportunities(options: RedditCollectorOptions
     limit: String(Math.min(Math.max(options.limit ?? 50, 1), 100)),
   });
 
-  const response = await fetchImpl(`${API_URL}/r/${subredditPath}/search?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "User-Agent": credentials.userAgent,
+  return requestWithTimeout(
+    async (signal) => {
+      const response = await fetchImpl(`${API_URL}/r/${subredditPath}/search?${params}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "User-Agent": credentials.userAgent,
+        },
+        signal,
+      });
+
+      if (!response.ok) {
+        throw new RedditCollectorError("Reddit search request failed", response.status);
+      }
+
+      const listing = (await response.json()) as RedditListing;
+      return listing.data.children.map(({ data }) => redditPostToOpportunity(data, now));
     },
-  });
-
-  if (!response.ok) {
-    throw new RedditCollectorError("Reddit search request failed", response.status);
-  }
-
-  const listing = (await response.json()) as RedditListing;
-  return listing.data.children.map(({ data }) => redditPostToOpportunity(data, now));
+    { timeoutMs: options.timeoutMs, signal: options.signal },
+  );
 }
