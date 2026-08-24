@@ -1,10 +1,13 @@
 import type { Opportunity } from "../lib/opportunity";
+import { requestWithTimeout } from "../lib/fetch-with-timeout";
 
 export type GreenhouseCollectorOptions = {
   boardTokens: string[];
   limit?: number;
   now?: Date;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  signal?: AbortSignal;
 };
 
 type GreenhouseJob = {
@@ -118,40 +121,46 @@ export async function collectGreenhouseOpportunities(options: GreenhouseCollecto
 
   const boards = await Promise.all(
     boardTokens.map(async (boardToken) => {
-      const response = await fetchImpl(
-        `${API_URL}/${encodeURIComponent(boardToken)}/jobs?content=true`,
-        {
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "ScoreScout/0.1 (public Greenhouse Job Board API client)",
+      return requestWithTimeout(async (signal) => {
+        const response = await fetchImpl(
+          `${API_URL}/${encodeURIComponent(boardToken)}/jobs?content=true`,
+          {
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "ScoreScout/0.1 (public Greenhouse Job Board API client)",
+            },
+            signal,
           },
-        },
-      );
+        );
 
-      if (!response.ok) {
-        throw new GreenhouseCollectorError("Greenhouse job board request failed", response.status);
-      }
+        if (!response.ok) {
+          throw new GreenhouseCollectorError("Greenhouse job board request failed", response.status);
+        }
 
-      const declaredSize = Number(response.headers.get("content-length") ?? 0);
-      if (declaredSize > MAX_RESPONSE_BYTES) {
-        throw new GreenhouseCollectorError("Greenhouse job board response is too large");
-      }
+        const declaredSize = Number(response.headers.get("content-length") ?? 0);
+        if (declaredSize > MAX_RESPONSE_BYTES) {
+          throw new GreenhouseCollectorError("Greenhouse job board response is too large");
+        }
 
-      const body = await response.text();
-      if (new TextEncoder().encode(body).byteLength > MAX_RESPONSE_BYTES) {
-        throw new GreenhouseCollectorError("Greenhouse job board response is too large");
-      }
+        const body = await response.text();
+        if (new TextEncoder().encode(body).byteLength > MAX_RESPONSE_BYTES) {
+          throw new GreenhouseCollectorError("Greenhouse job board response is too large");
+        }
 
-      let payload: GreenhouseJobsResponse;
-      try {
-        payload = JSON.parse(body) as GreenhouseJobsResponse;
-      } catch {
-        throw new GreenhouseCollectorError("Greenhouse job board returned invalid JSON");
-      }
+        let payload: GreenhouseJobsResponse;
+        try {
+          payload = JSON.parse(body) as GreenhouseJobsResponse;
+        } catch {
+          throw new GreenhouseCollectorError("Greenhouse job board returned invalid JSON");
+        }
 
-      return (payload.jobs ?? []).flatMap((job) => {
-        const opportunity = greenhouseJobToOpportunity(job, boardToken, now);
-        return opportunity ? [opportunity] : [];
+        return (payload.jobs ?? []).flatMap((job) => {
+          const opportunity = greenhouseJobToOpportunity(job, boardToken, now);
+          return opportunity ? [opportunity] : [];
+        });
+      }, {
+        timeoutMs: options.timeoutMs,
+        signal: options.signal,
       });
     }),
   );
