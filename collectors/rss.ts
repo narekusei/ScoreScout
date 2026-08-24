@@ -1,10 +1,13 @@
 import type { Opportunity } from "../lib/opportunity";
+import { requestWithTimeout } from "../lib/fetch-with-timeout";
 
 export type RssCollectorOptions = {
   feedUrls: string[];
   limit?: number;
   now?: Date;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  signal?: AbortSignal;
 };
 
 const MAX_FEEDS = 5;
@@ -139,28 +142,34 @@ export async function collectRssOpportunities(options: RssCollectorOptions) {
 
   const feeds = await Promise.all(
     feedUrls.map(async (feedUrl) => {
-      const response = await fetchImpl(feedUrl, {
-        headers: {
-          Accept: "application/atom+xml, application/rss+xml, application/xml, text/xml",
-          "User-Agent": "ScoreScout/0.1 (RSS reader)",
-        },
+      return requestWithTimeout(async (signal) => {
+        const response = await fetchImpl(feedUrl, {
+          headers: {
+            Accept: "application/atom+xml, application/rss+xml, application/xml, text/xml",
+            "User-Agent": "ScoreScout/0.1 (RSS reader)",
+          },
+          signal,
+        });
+
+        if (!response.ok) {
+          throw new RssCollectorError("RSS feed request failed", response.status);
+        }
+
+        const declaredSize = Number(response.headers.get("content-length") ?? 0);
+        if (declaredSize > MAX_FEED_BYTES) {
+          throw new RssCollectorError("RSS feed is too large");
+        }
+
+        const xml = await response.text();
+        if (xml.length > MAX_FEED_BYTES) {
+          throw new RssCollectorError("RSS feed is too large");
+        }
+
+        return parseSyndicationFeed(xml, feedUrl, now);
+      }, {
+        timeoutMs: options.timeoutMs,
+        signal: options.signal,
       });
-
-      if (!response.ok) {
-        throw new RssCollectorError("RSS feed request failed", response.status);
-      }
-
-      const declaredSize = Number(response.headers.get("content-length") ?? 0);
-      if (declaredSize > MAX_FEED_BYTES) {
-        throw new RssCollectorError("RSS feed is too large");
-      }
-
-      const xml = await response.text();
-      if (xml.length > MAX_FEED_BYTES) {
-        throw new RssCollectorError("RSS feed is too large");
-      }
-
-      return parseSyndicationFeed(xml, feedUrl, now);
     }),
   );
 
