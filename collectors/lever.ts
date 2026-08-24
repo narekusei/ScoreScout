@@ -1,10 +1,13 @@
 import type { Opportunity } from "../lib/opportunity";
+import { requestWithTimeout } from "../lib/fetch-with-timeout";
 
 export type LeverCollectorOptions = {
   siteNames: string[];
   limit?: number;
   now?: Date;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  signal?: AbortSignal;
 };
 
 type LeverPosting = {
@@ -124,43 +127,49 @@ export async function collectLeverOpportunities(options: LeverCollectorOptions) 
 
   const sites = await Promise.all(
     siteNames.map(async (siteName) => {
-      const response = await fetchImpl(
-        `${API_URL}/${encodeURIComponent(siteName)}?mode=json&limit=100`,
-        {
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "ScoreScout/0.1 (public Lever Postings API client)",
+      return requestWithTimeout(async (signal) => {
+        const response = await fetchImpl(
+          `${API_URL}/${encodeURIComponent(siteName)}?mode=json&limit=100`,
+          {
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "ScoreScout/0.1 (public Lever Postings API client)",
+            },
+            signal,
           },
-        },
-      );
+        );
 
-      if (!response.ok) {
-        throw new LeverCollectorError("Lever job site request failed", response.status);
-      }
+        if (!response.ok) {
+          throw new LeverCollectorError("Lever job site request failed", response.status);
+        }
 
-      const declaredSize = Number(response.headers.get("content-length") ?? 0);
-      if (declaredSize > MAX_RESPONSE_BYTES) {
-        throw new LeverCollectorError("Lever job site response is too large");
-      }
+        const declaredSize = Number(response.headers.get("content-length") ?? 0);
+        if (declaredSize > MAX_RESPONSE_BYTES) {
+          throw new LeverCollectorError("Lever job site response is too large");
+        }
 
-      const body = await response.text();
-      if (new TextEncoder().encode(body).byteLength > MAX_RESPONSE_BYTES) {
-        throw new LeverCollectorError("Lever job site response is too large");
-      }
+        const body = await response.text();
+        if (new TextEncoder().encode(body).byteLength > MAX_RESPONSE_BYTES) {
+          throw new LeverCollectorError("Lever job site response is too large");
+        }
 
-      let payload: LeverPosting[];
-      try {
-        payload = JSON.parse(body) as LeverPosting[];
-      } catch {
-        throw new LeverCollectorError("Lever job site returned invalid JSON");
-      }
-      if (!Array.isArray(payload)) {
-        throw new LeverCollectorError("Lever job site returned an unexpected response");
-      }
+        let payload: LeverPosting[];
+        try {
+          payload = JSON.parse(body) as LeverPosting[];
+        } catch {
+          throw new LeverCollectorError("Lever job site returned invalid JSON");
+        }
+        if (!Array.isArray(payload)) {
+          throw new LeverCollectorError("Lever job site returned an unexpected response");
+        }
 
-      return payload.flatMap((posting) => {
-        const opportunity = leverPostingToOpportunity(posting, siteName, now);
-        return opportunity ? [opportunity] : [];
+        return payload.flatMap((posting) => {
+          const opportunity = leverPostingToOpportunity(posting, siteName, now);
+          return opportunity ? [opportunity] : [];
+        });
+      }, {
+        timeoutMs: options.timeoutMs,
+        signal: options.signal,
       });
     }),
   );
