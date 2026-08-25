@@ -1,4 +1,8 @@
 import type { Opportunity } from "../lib/opportunity";
+import {
+  collectorRequestFailure,
+  type CollectorRequestFailure,
+} from "../lib/collector-failure";
 import { requestWithTimeout } from "../lib/fetch-with-timeout";
 
 export type RssCollectorOptions = {
@@ -8,6 +12,7 @@ export type RssCollectorOptions = {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   signal?: AbortSignal;
+  onFailure?: (failure: CollectorRequestFailure) => void;
 };
 
 const MAX_FEEDS = 5;
@@ -140,7 +145,7 @@ export async function collectRssOpportunities(options: RssCollectorOptions) {
   const feedUrls = validateFeedUrls(options.feedUrls);
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
 
-  const feeds = await Promise.all(
+  const feeds = await Promise.allSettled(
     feedUrls.map(async (feedUrl) => {
       return requestWithTimeout(async (signal) => {
         const response = await fetchImpl(feedUrl, {
@@ -173,5 +178,25 @@ export async function collectRssOpportunities(options: RssCollectorOptions) {
     }),
   );
 
-  return feeds.flat().slice(0, limit);
+  feeds.forEach((result, index) => {
+    if (result.status === "rejected") {
+      options.onFailure?.(
+        collectorRequestFailure(
+          "RSS",
+          feedUrls[index],
+          result.reason,
+          "RSS feed request failed",
+        ),
+      );
+    }
+  });
+
+  const firstFailure = feeds.find((result) => result.status === "rejected");
+  if (feeds.length && feeds.every((result) => result.status === "rejected")) {
+    throw firstFailure?.reason;
+  }
+
+  return feeds.flatMap((result) =>
+    result.status === "fulfilled" ? result.value : [],
+  ).slice(0, limit);
 }
