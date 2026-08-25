@@ -44,3 +44,44 @@ test("rejects non-HTTPS feeds before fetching", async () => {
     (error: unknown) => error instanceof RssCollectorError && /HTTPS/.test(error.message),
   );
 });
+
+test("keeps successful RSS feeds when a sibling feed fails", async () => {
+  const failures: Array<{ source: string; target: string; message: string }> = [];
+  const opportunities = await collectRssOpportunities({
+    feedUrls: ["https://broken.example/feed.xml", "https://jobs.example/feed.xml"],
+    now,
+    onFailure: (failure) => failures.push(failure),
+    fetchImpl: async (input) => {
+      if (String(input).includes("broken.example")) {
+        return new Response("Unavailable", { status: 503 });
+      }
+      return new Response(`
+        <rss><channel><title>Working Feed</title><item>
+          <guid>working-1</guid><title>Composer contract</title>
+          <link>https://jobs.example/working-1</link>
+          <description>Paid soundtrack project.</description>
+        </item></channel></rss>
+      `);
+    },
+  });
+
+  assert.equal(opportunities.length, 1);
+  assert.deepEqual(failures, [{
+    source: "RSS",
+    target: "https://broken.example/feed.xml",
+    message: "RSS feed request failed",
+  }]);
+});
+
+test("still rejects when every configured RSS feed fails", async () => {
+  const failures: unknown[] = [];
+  await assert.rejects(
+    collectRssOpportunities({
+      feedUrls: ["https://one.example/feed.xml", "https://two.example/feed.xml"],
+      onFailure: (failure) => failures.push(failure),
+      fetchImpl: async () => new Response("Unavailable", { status: 503 }),
+    }),
+    RssCollectorError,
+  );
+  assert.equal(failures.length, 2);
+});
