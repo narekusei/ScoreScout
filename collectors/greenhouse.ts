@@ -1,4 +1,8 @@
 import type { Opportunity } from "../lib/opportunity";
+import {
+  collectorRequestFailure,
+  type CollectorRequestFailure,
+} from "../lib/collector-failure";
 import { requestWithTimeout } from "../lib/fetch-with-timeout";
 
 export type GreenhouseCollectorOptions = {
@@ -8,6 +12,7 @@ export type GreenhouseCollectorOptions = {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   signal?: AbortSignal;
+  onFailure?: (failure: CollectorRequestFailure) => void;
 };
 
 type GreenhouseJob = {
@@ -119,7 +124,7 @@ export async function collectGreenhouseOpportunities(options: GreenhouseCollecto
   const boardTokens = validateBoardTokens(options.boardTokens);
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
 
-  const boards = await Promise.all(
+  const boards = await Promise.allSettled(
     boardTokens.map(async (boardToken) => {
       return requestWithTimeout(async (signal) => {
         const response = await fetchImpl(
@@ -165,5 +170,25 @@ export async function collectGreenhouseOpportunities(options: GreenhouseCollecto
     }),
   );
 
-  return boards.flat().slice(0, limit);
+  boards.forEach((result, index) => {
+    if (result.status === "rejected") {
+      options.onFailure?.(
+        collectorRequestFailure(
+          "Greenhouse",
+          boardTokens[index],
+          result.reason,
+          "Greenhouse job board request failed",
+        ),
+      );
+    }
+  });
+
+  const firstFailure = boards.find((result) => result.status === "rejected");
+  if (boards.length && boards.every((result) => result.status === "rejected")) {
+    throw firstFailure?.reason;
+  }
+
+  return boards.flatMap((result) =>
+    result.status === "fulfilled" ? result.value : [],
+  ).slice(0, limit);
 }
