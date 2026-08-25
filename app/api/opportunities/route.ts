@@ -5,6 +5,7 @@ import {
   GreenhouseCollectorError,
 } from "../../../collectors/greenhouse";
 import { collectLeverOpportunities, LeverCollectorError } from "../../../collectors/lever";
+import type { CollectorRequestFailure } from "../../../lib/collector-failure";
 import { scoreOpportunity, type Opportunity } from "../../../lib/opportunity";
 import { matchesOpportunityQuery } from "../../../lib/opportunity-search";
 
@@ -78,6 +79,7 @@ export async function GET(request: Request) {
     source: string;
     run: () => Promise<Opportunity[]>;
   }> = [];
+  const failedRequests: CollectorRequestFailure[] = [];
   if (redditConfigured) {
     collectors.push({
       source: "Reddit",
@@ -88,19 +90,31 @@ export async function GET(request: Request) {
   if (rssFeedUrls.length) {
     collectors.push({
       source: "RSS",
-      run: () => collectRssOpportunities({ feedUrls: rssFeedUrls, limit: 50 }),
+      run: () => collectRssOpportunities({
+        feedUrls: rssFeedUrls,
+        limit: 50,
+        onFailure: (failure) => failedRequests.push(failure),
+      }),
     });
   }
   if (greenhouseBoardTokens.length) {
     collectors.push({
       source: "Greenhouse",
-      run: () => collectGreenhouseOpportunities({ boardTokens: greenhouseBoardTokens, limit: 50 }),
+      run: () => collectGreenhouseOpportunities({
+        boardTokens: greenhouseBoardTokens,
+        limit: 50,
+        onFailure: (failure) => failedRequests.push(failure),
+      }),
     });
   }
   if (leverSiteNames.length) {
     collectors.push({
       source: "Lever",
-      run: () => collectLeverOpportunities({ siteNames: leverSiteNames, limit: 50 }),
+      run: () => collectLeverOpportunities({
+        siteNames: leverSiteNames,
+        limit: 50,
+        onFailure: (failure) => failedRequests.push(failure),
+      }),
     });
   }
 
@@ -131,6 +145,7 @@ export async function GET(request: Request) {
         error: "source_request_failed",
         message: knownError ? reason.message : "ScoreScout could not load opportunities right now.",
         failedSources,
+        failedRequests,
       },
       { status: rateLimited ? 429 : 502 },
     );
@@ -154,6 +169,7 @@ export async function GET(request: Request) {
     meta: {
       sources: collectors.map((collector) => collector.source),
       failedSources,
+      failedRequests,
       query,
       communities: redditConfigured ? COMMUNITIES : [],
       collected: collected.length,
