@@ -73,3 +73,33 @@ test("rejects unsafe Greenhouse board tokens before making a request", async () 
   );
   assert.equal(fetched, false);
 });
+
+test("keeps successful Greenhouse boards when a sibling board fails", async () => {
+  const failures: Array<{ source: string; target: string; message: string }> = [];
+  const opportunities = await collectGreenhouseOpportunities({
+    boardTokens: ["broken-board", "sound-studio"],
+    now,
+    onFailure: (failure) => failures.push(failure),
+    fetchImpl: async (input) => {
+      if (String(input).includes("broken-board")) {
+        return new Response("Unavailable", { status: 503 });
+      }
+      return new Response(JSON.stringify({
+        jobs: [{
+          id: 9,
+          title: "Composer",
+          location: { name: "Remote" },
+          absolute_url: "https://example.com/jobs/9",
+          content: "Paid music contract.",
+        }],
+      }));
+    },
+  });
+
+  assert.equal(opportunities.length, 1);
+  assert.deepEqual(failures, [{
+    source: "Greenhouse",
+    target: "broken-board",
+    message: "Greenhouse job board request failed",
+  }]);
+});
