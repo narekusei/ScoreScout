@@ -78,3 +78,31 @@ test("rejects unsafe Lever site names before making a request", async () => {
   );
   assert.equal(fetched, false);
 });
+
+test("keeps successful Lever sites when a sibling site fails", async () => {
+  const failures: Array<{ source: string; target: string; message: string }> = [];
+  const opportunities = await collectLeverOpportunities({
+    siteNames: ["broken-site", "sound-studio"],
+    now,
+    onFailure: (failure) => failures.push(failure),
+    fetchImpl: async (input) => {
+      if (String(input).includes("broken-site")) {
+        return new Response("Unavailable", { status: 503 });
+      }
+      return new Response(JSON.stringify([{
+        id: "job-9",
+        text: "Composer",
+        categories: { location: "Remote" },
+        descriptionPlain: "Paid music contract.",
+        hostedUrl: "https://jobs.lever.co/sound-studio/job-9",
+      }]));
+    },
+  });
+
+  assert.equal(opportunities.length, 1);
+  assert.deepEqual(failures, [{
+    source: "Lever",
+    target: "broken-site",
+    message: "Lever job site request failed",
+  }]);
+});
