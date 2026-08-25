@@ -1,4 +1,8 @@
 import type { Opportunity } from "../lib/opportunity";
+import {
+  collectorRequestFailure,
+  type CollectorRequestFailure,
+} from "../lib/collector-failure";
 import { requestWithTimeout } from "../lib/fetch-with-timeout";
 
 export type LeverCollectorOptions = {
@@ -8,6 +12,7 @@ export type LeverCollectorOptions = {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   signal?: AbortSignal;
+  onFailure?: (failure: CollectorRequestFailure) => void;
 };
 
 type LeverPosting = {
@@ -125,7 +130,7 @@ export async function collectLeverOpportunities(options: LeverCollectorOptions) 
   const siteNames = validateSiteNames(options.siteNames);
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
 
-  const sites = await Promise.all(
+  const sites = await Promise.allSettled(
     siteNames.map(async (siteName) => {
       return requestWithTimeout(async (signal) => {
         const response = await fetchImpl(
@@ -174,5 +179,25 @@ export async function collectLeverOpportunities(options: LeverCollectorOptions) 
     }),
   );
 
-  return sites.flat().slice(0, limit);
+  sites.forEach((result, index) => {
+    if (result.status === "rejected") {
+      options.onFailure?.(
+        collectorRequestFailure(
+          "Lever",
+          siteNames[index],
+          result.reason,
+          "Lever job site request failed",
+        ),
+      );
+    }
+  });
+
+  const firstFailure = sites.find((result) => result.status === "rejected");
+  if (sites.length && sites.every((result) => result.status === "rejected")) {
+    throw firstFailure?.reason;
+  }
+
+  return sites.flatMap((result) =>
+    result.status === "fulfilled" ? result.value : [],
+  ).slice(0, limit);
 }
