@@ -7,6 +7,7 @@ import {
   parseSavedOpportunities,
   serializeSavedOpportunities,
 } from "../lib/saved-opportunities";
+import { hasSpecifiedBudget } from "../lib/budget";
 
 const disciplines = ["Composition", "Game audio", "Film scoring", "Sound design"] as const;
 type Discipline = (typeof disciplines)[number];
@@ -90,7 +91,7 @@ export default function Home() {
           disciplineTerms[discipline].some((term) => text.includes(term)),
         );
       const isPaid = job.budgetLabel !== "Budget unclear" || job.tags.includes("Paid");
-      const hasBudget = /[$€£]\s?\d/.test(job.budgetLabel);
+      const hasBudget = hasSpecifiedBudget(job.budgetLabel);
 
       return (
         job.score >= minimumScore &&
