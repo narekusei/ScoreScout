@@ -4,6 +4,7 @@ import {
   type CollectorRequestFailure,
 } from "../lib/collector-failure";
 import { requestWithTimeout } from "../lib/fetch-with-timeout";
+import { formatCurrencyAmount } from "../lib/budget";
 
 export type LeverCollectorOptions = {
   siteNames: string[];
@@ -34,12 +35,12 @@ type LeverPosting = {
     max?: number;
   };
   salaryDescriptionPlain?: string;
-  createdAt?: number;
 };
 
 const API_URL = "https://api.lever.co/v0/postings";
 const MAX_SITES = 5;
 const MAX_RESPONSE_BYTES = 5_000_000;
+const UNKNOWN_FRESHNESS_HOURS = 30 * 24;
 
 export class LeverCollectorError extends Error {
   constructor(message: string, public readonly status?: number) {
@@ -53,17 +54,21 @@ function cleanText(value: string) {
 }
 
 function formatSalary(posting: LeverPosting) {
-  const description = cleanText(posting.salaryDescriptionPlain ?? "");
-  if (description) return description;
-
   const { currency, interval, min, max } = posting.salaryRange ?? {};
-  if (typeof min !== "number" && typeof max !== "number") return "Budget unclear";
+  const amounts = [min, max]
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+    .map((value) => formatCurrencyAmount(value, currency))
+    .filter((value): value is string => value !== null);
 
-  const amount = [min, max]
-    .filter((value): value is number => typeof value === "number")
-    .map((value) => value.toLocaleString("en-US"))
-    .join("–");
-  return `${currency ?? "Salary"} ${amount}${interval ? ` / ${interval}` : ""}`;
+  if (amounts.length) {
+    const range = amounts.length === 2
+      ? `${amounts[0]}–${amounts[1].replace(/^[A-Z]{3}\s/, "")}`
+      : amounts[0];
+    return `${range}${interval ? ` / ${cleanText(interval)}` : ""}`;
+  }
+
+  const description = cleanText(posting.salaryDescriptionPlain ?? "");
+  return description || "Budget unclear";
 }
 
 function validateSiteNames(siteNames: string[]) {
@@ -99,9 +104,9 @@ export function leverPostingToOpportunity(
     return null;
   }
 
-  const fallbackDate = new Date(now.getTime() - 30 * 24 * 3_600_000);
-  const parsedDate = typeof posting.createdAt === "number" ? new Date(posting.createdAt) : fallbackDate;
-  const publishedAt = Number.isNaN(parsedDate.getTime()) ? fallbackDate : parsedDate;
+  // Lever's public Postings API does not expose a publication timestamp. Use a
+  // conservative fixed age so these jobs never receive an artificial freshness boost.
+  const publishedAt = new Date(now.getTime() - UNKNOWN_FRESHNESS_HOURS * 3_600_000);
   const description = cleanText(
     [posting.descriptionPlain, posting.additionalPlain].filter(Boolean).join(" "),
   ) || "No description provided.";
@@ -119,7 +124,7 @@ export function leverPostingToOpportunity(
     community: `${siteName} · ${location}`,
     url: url.toString(),
     publishedAt: publishedAt.toISOString(),
-    ageHours: Math.max(0, Math.floor((now.getTime() - publishedAt.getTime()) / 3_600_000)),
+    ageHours: UNKNOWN_FRESHNESS_HOURS,
     budgetLabel: formatSalary(posting),
     tags: [...new Set(tags)],
   };

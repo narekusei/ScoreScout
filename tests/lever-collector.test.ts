@@ -16,7 +16,6 @@ test("normalizes a Lever posting into an opportunity", () => {
       hostedUrl: "https://jobs.lever.co/soundstudio/audio-42",
       workplaceType: "remote",
       salaryRange: { currency: "USD", min: 2000, max: 3000, interval: "project" },
-      createdAt: Date.parse("2026-08-19T10:00:00Z"),
     },
     "soundstudio",
     now,
@@ -30,8 +29,32 @@ test("normalizes a Lever posting into an opportunity", () => {
     "Seeking a composer for a paid game soundtrack. Portfolio required.",
   );
   assert.equal(opportunity.budgetLabel, "USD 2,000–3,000 / project");
-  assert.equal(opportunity.ageHours, 2);
+  assert.equal(opportunity.ageHours, 720);
+  assert.equal(opportunity.publishedAt, "2026-07-20T12:00:00.000Z");
   assert.deepEqual(opportunity.tags, ["Lever", "Audio", "Contract", "Remote"]);
+});
+
+test("prefers a normalized structured salary and supports non-dollar currencies", () => {
+  const opportunity = leverPostingToOpportunity({
+    id: "audio-yen",
+    text: "Audio Designer",
+    hostedUrl: "https://jobs.lever.co/soundstudio/audio-yen",
+    salaryRange: { currency: "JPY", min: 4000000, max: 6000000, interval: "year" },
+    salaryDescriptionPlain: "Competitive salary",
+  }, "soundstudio", now);
+
+  assert.equal(opportunity?.budgetLabel, "JPY 4,000,000–6,000,000 / year");
+});
+
+test("preserves salary descriptions when Lever has no structured range", () => {
+  const opportunity = leverPostingToOpportunity({
+    id: "audio-description",
+    text: "Composer",
+    hostedUrl: "https://jobs.lever.co/soundstudio/audio-description",
+    salaryDescriptionPlain: "€500 per day",
+  }, "soundstudio", now);
+
+  assert.equal(opportunity?.budgetLabel, "€500 per day");
 });
 
 test("loads jobs from the official public postings endpoint", async () => {
