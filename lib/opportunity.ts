@@ -25,31 +25,46 @@ export type ScoredOpportunity = Opportunity & {
 };
 
 const musicTerms = ["composer", "music", "score", "soundtrack", "sound designer"];
-const hiringTerms = ["looking for", "needed", "seeking", "contract", "hire"];
-const paymentTerms = ["paid", "budget", "fixed", "$", "rate"];
+const hiringTerms = ["looking for", "needed", "seeking", "wanted", "hiring", "commission"];
+const paymentTerms = ["paid", "budget", "fixed fee", "hourly rate", "day rate", "salary"];
 const selfPromotionTerms = ["for hire", "available for work", "my portfolio"];
+const unpaidTerms = ["unpaid", "no budget", "volunteer", "without pay"];
+const revenueShareTerms = ["revenue share", "rev share", "profit share", "royalty only"];
+
+const currencyPattern =
+  /(?:[$€£¥₹₩₽₺₴₫฿₱₦₲₡₵]|\b(?:usd|eur|gbp|jpy|cad|aud|nzd|chf|cny|rmb|inr|krw|rub|brl|mxn|sgd|hkd|sek|nok|dkk|pln|czk|zar)\b)/i;
 
 function containsAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term));
 }
 
 export function scoreOpportunity(opportunity: Opportunity): ScoredOpportunity {
-  const text = `${opportunity.title} ${opportunity.description} ${opportunity.budgetLabel}`.toLowerCase();
+  const title = opportunity.title.toLowerCase();
+  const description = opportunity.description.toLowerCase();
+  const budget = opportunity.budgetLabel.toLowerCase();
+  const text = `${title} ${description} ${budget}`;
   const reasons: string[] = [];
-  let score = 20;
+  let score = 15;
 
-  if (containsAny(text, musicTerms)) {
-    score += 25;
-    reasons.push("music role detected");
+  if (containsAny(title, musicTerms)) {
+    score += 30;
+    reasons.push("music role in title");
+  } else if (containsAny(description, musicTerms)) {
+    score += 15;
+    reasons.push("music role in description");
   }
 
-  if (containsAny(text, hiringTerms)) {
+  if (containsAny(title, hiringTerms)) {
     score += 25;
     reasons.push("clear hiring intent");
+  } else if (containsAny(description, hiringTerms)) {
+    score += 15;
+    reasons.push("hiring intent in description");
   }
 
-  if (containsAny(text, paymentTerms) && opportunity.budgetLabel !== "Budget unclear") {
-    score += 20;
+  const hasBudget = budget !== "budget unclear" && budget.trim().length > 0;
+  if (hasBudget && (containsAny(text, paymentTerms) || currencyPattern.test(text))) {
+    score += 15;
     reasons.push("payment details found");
   }
 
@@ -64,6 +79,16 @@ export function scoreOpportunity(opportunity: Opportunity): ScoredOpportunity {
   if (containsAny(text, selfPromotionTerms)) {
     score -= 45;
     reasons.push("possible self-promotion");
+  }
+
+  if (containsAny(text, unpaidTerms)) {
+    score -= 50;
+    reasons.push("unpaid opportunity");
+  }
+
+  if (containsAny(text, revenueShareTerms)) {
+    score -= 35;
+    reasons.push("revenue-share compensation");
   }
 
   return { ...opportunity, score: Math.max(0, Math.min(100, score)), scoreReasons: reasons };
