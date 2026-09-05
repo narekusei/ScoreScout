@@ -12,6 +12,39 @@ import { matchesOpportunityQuery } from "../../../lib/opportunity-search";
 const DEFAULT_QUERY = 'composer OR "game music" OR soundtrack OR "film score"';
 const COMMUNITIES = ["gameDevClassifieds", "INAT", "MusicJobs", "GameAudio"];
 
+type Environment = Partial<Record<
+  | "REDDIT_CLIENT_ID"
+  | "REDDIT_CLIENT_SECRET"
+  | "REDDIT_USER_AGENT"
+  | "RSS_FEED_URLS"
+  | "GREENHOUSE_BOARD_TOKENS"
+  | "LEVER_SITE_NAMES",
+  string | undefined
+>>;
+
+type RouteDependencies = {
+  env: Environment;
+  collectReddit: typeof collectRedditOpportunities;
+  collectRss: typeof collectRssOpportunities;
+  collectGreenhouse: typeof collectGreenhouseOpportunities;
+  collectLever: typeof collectLeverOpportunities;
+};
+
+const defaultDependencies: RouteDependencies = {
+  env: {
+    REDDIT_CLIENT_ID: process.env.REDDIT_CLIENT_ID,
+    REDDIT_CLIENT_SECRET: process.env.REDDIT_CLIENT_SECRET,
+    REDDIT_USER_AGENT: process.env.REDDIT_USER_AGENT,
+    RSS_FEED_URLS: process.env.RSS_FEED_URLS,
+    GREENHOUSE_BOARD_TOKENS: process.env.GREENHOUSE_BOARD_TOKENS,
+    LEVER_SITE_NAMES: process.env.LEVER_SITE_NAMES,
+  },
+  collectReddit: collectRedditOpportunities,
+  collectRss: collectRssOpportunities,
+  collectGreenhouse: collectGreenhouseOpportunities,
+  collectLever: collectLeverOpportunities,
+};
+
 function json(body: unknown, init?: ResponseInit) {
   const headers = new Headers(init?.headers);
   headers.set("Cache-Control", "no-store");
@@ -19,40 +52,40 @@ function json(body: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(body), { ...init, headers });
 }
 
-function getCredentials() {
+function getCredentials(env: Environment) {
   return {
-    clientId: process.env.REDDIT_CLIENT_ID?.trim() ?? "",
-    clientSecret: process.env.REDDIT_CLIENT_SECRET?.trim() ?? "",
-    userAgent: process.env.REDDIT_USER_AGENT?.trim() ?? "",
+    clientId: env.REDDIT_CLIENT_ID?.trim() ?? "",
+    clientSecret: env.REDDIT_CLIENT_SECRET?.trim() ?? "",
+    userAgent: env.REDDIT_USER_AGENT?.trim() ?? "",
   };
 }
 
-function getRssFeedUrls() {
-  return (process.env.RSS_FEED_URLS ?? "")
+function getRssFeedUrls(env: Environment) {
+  return (env.RSS_FEED_URLS ?? "")
     .split(/[,\n]/)
     .map((value) => value.trim())
     .filter(Boolean);
 }
 
-function getGreenhouseBoardTokens() {
-  return (process.env.GREENHOUSE_BOARD_TOKENS ?? "")
+function getGreenhouseBoardTokens(env: Environment) {
+  return (env.GREENHOUSE_BOARD_TOKENS ?? "")
     .split(/[,\n]/)
     .map((value) => value.trim())
     .filter(Boolean);
 }
 
-function getLeverSiteNames() {
-  return (process.env.LEVER_SITE_NAMES ?? "")
+function getLeverSiteNames(env: Environment) {
+  return (env.LEVER_SITE_NAMES ?? "")
     .split(/[,\n]/)
     .map((value) => value.trim())
     .filter(Boolean);
 }
 
-export async function GET(request: Request) {
-  const credentials = getCredentials();
-  const rssFeedUrls = getRssFeedUrls();
-  const greenhouseBoardTokens = getGreenhouseBoardTokens();
-  const leverSiteNames = getLeverSiteNames();
+async function handleOpportunities(request: Request, dependencies: RouteDependencies) {
+  const credentials = getCredentials(dependencies.env);
+  const rssFeedUrls = getRssFeedUrls(dependencies.env);
+  const greenhouseBoardTokens = getGreenhouseBoardTokens(dependencies.env);
+  const leverSiteNames = getLeverSiteNames(dependencies.env);
   const redditConfigured = Boolean(
     credentials.clientId && credentials.clientSecret && credentials.userAgent,
   );
@@ -84,13 +117,13 @@ export async function GET(request: Request) {
     collectors.push({
       source: "Reddit",
       run: () =>
-        collectRedditOpportunities({ credentials, communities: COMMUNITIES, query, limit: 50 }),
+        dependencies.collectReddit({ credentials, communities: COMMUNITIES, query, limit: 50 }),
     });
   }
   if (rssFeedUrls.length) {
     collectors.push({
       source: "RSS",
-      run: () => collectRssOpportunities({
+      run: () => dependencies.collectRss({
         feedUrls: rssFeedUrls,
         limit: 50,
         onFailure: (failure) => failedRequests.push(failure),
@@ -100,7 +133,7 @@ export async function GET(request: Request) {
   if (greenhouseBoardTokens.length) {
     collectors.push({
       source: "Greenhouse",
-      run: () => collectGreenhouseOpportunities({
+      run: () => dependencies.collectGreenhouse({
         boardTokens: greenhouseBoardTokens,
         limit: 50,
         onFailure: (failure) => failedRequests.push(failure),
@@ -110,7 +143,7 @@ export async function GET(request: Request) {
   if (leverSiteNames.length) {
     collectors.push({
       source: "Lever",
-      run: () => collectLeverOpportunities({
+      run: () => dependencies.collectLever({
         siteNames: leverSiteNames,
         limit: 50,
         onFailure: (failure) => failedRequests.push(failure),
@@ -177,3 +210,12 @@ export async function GET(request: Request) {
     },
   });
 }
+
+export function createOpportunitiesHandler(
+  overrides: Partial<RouteDependencies> = {},
+) {
+  const dependencies = { ...defaultDependencies, ...overrides };
+  return (request: Request) => handleOpportunities(request, dependencies);
+}
+
+export const GET = createOpportunitiesHandler();
