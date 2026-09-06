@@ -47,6 +47,7 @@ test("shows the loading state and renders successful live search results", async
 
   assert.equal(view.getByRole("button", { name: "Scouting…" }).hasAttribute("disabled"), true);
   assert.match(view.getByRole("status").textContent ?? "", /Scouting connected sources/);
+  assert.equal(view.container.querySelectorAll(".skeletonCard").length, 3);
 
   await act(async () => {
     resolveFetch(new Response(
@@ -67,7 +68,12 @@ test("shows the loading state and renders successful live search results", async
             scoreReasons: ["music role in title"],
           },
         ],
-        meta: { collected: 4, returned: 1, sources: ["RSS", "Lever"] },
+        meta: {
+          collected: 4,
+          returned: 1,
+          sources: ["RSS", "Lever"],
+          failedRequests: [{ source: "Lever", target: "studio", message: "Timed out" }],
+        },
       }),
       { status: 200, headers: { "content-type": "application/json" } },
     ));
@@ -76,6 +82,18 @@ test("shows the loading state and renders successful live search results", async
   await waitFor(() => view.getByText("Composer wanted for an adventure game"));
   assert.match(view.getByRole("status").textContent ?? "", /1 strong matches from 4 posts checked/);
   assert.ok(view.getByText("2", { selector: ".trustLine b" }));
+  assert.match(view.getByRole("alert").textContent ?? "", /Lever/);
+  const externalLink = view.getByRole("link", { name: "View post ↗" });
+  assert.equal(externalLink.getAttribute("target"), "_blank");
+  assert.equal(externalLink.getAttribute("rel"), "noopener noreferrer");
+});
+
+test("labels demonstration freshness truthfully", async () => {
+  const view = render(<Home />);
+  await act(async () => {});
+
+  assert.equal(view.getAllByText("Sample data").length, 3);
+  assert.equal(view.queryByText(/ago$/), null);
 });
 
 test("filters opportunities and restores the complete result set", async () => {

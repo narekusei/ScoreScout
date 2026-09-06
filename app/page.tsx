@@ -27,7 +27,13 @@ type ApplicationStatus = (typeof applicationStatuses)[number];
 type OpportunitiesResponse = {
   opportunities?: ScoredOpportunity[];
   message?: string;
-  meta?: { collected: number; returned: number; sources: string[] };
+  meta?: {
+    collected: number;
+    returned: number;
+    sources: string[];
+    failedSources?: string[];
+    failedRequests?: Array<{ source: string; target: string; message: string }>;
+  };
 };
 
 function formatAge(ageHours: number) {
@@ -42,6 +48,7 @@ export default function Home() {
   const [status, setStatus] = useState<"demo" | "loading" | "live" | "error">("demo");
   const [notice, setNotice] = useState("Showing demonstration opportunities");
   const [sourceCount, setSourceCount] = useState(1);
+  const [failedSources, setFailedSources] = useState<string[]>([]);
   const [selectedDisciplines, setSelectedDisciplines] = useState<Discipline[]>([...disciplines]);
   const [paidOnly, setPaidOnly] = useState(false);
   const [budgetSpecified, setBudgetSpecified] = useState(false);
@@ -153,6 +160,7 @@ export default function Home() {
 
     setStatus("loading");
     setNotice("Scouting connected sources for fresh opportunities…");
+    setFailedSources([]);
 
     try {
       const response = await fetch(`/api/opportunities?q=${encodeURIComponent(trimmedQuery)}`);
@@ -170,6 +178,12 @@ export default function Home() {
       const results = payload.opportunities ?? [];
       setJobs(results);
       setSourceCount(payload.meta?.sources.length ?? 1);
+      setFailedSources([
+        ...new Set([
+          ...(payload.meta?.failedSources ?? []),
+          ...(payload.meta?.failedRequests?.map((failure) => failure.source) ?? []),
+        ]),
+      ]);
       setStatus("live");
       setNotice(
         results.length
@@ -208,6 +222,11 @@ export default function Home() {
           <button type="submit" disabled={status === "loading"}>{status === "loading" ? "Scouting…" : "Scout opportunities"}</button>
         </form>
         <p className={`searchStatus ${status}`} role="status" aria-live="polite">{notice}</p>
+        {failedSources.length > 0 && (
+          <div className="sourceWarning" role="alert">
+            Some sources could not be reached: {failedSources.join(", ")}. Results from other sources are still shown.
+          </div>
+        )}
         <div className="trustLine">
           <span><b>{sourceCount}</b> compliant {sourceCount === 1 ? "source" : "sources"} configured</span>
           <span><b>{visibleJobs.length}</b> of {availableJobs.length} matches shown</span>
@@ -243,11 +262,18 @@ export default function Home() {
             <button type="button" className="sortButton" onClick={() => setSortOrder((current) => current === "match" ? "recent" : "match")} aria-label={`Sort by ${sortOrder === "match" ? "most recent" : "best match"}`}>{sortOrder === "match" ? "Best match ↓" : "Most recent ↓"}</button>
           </div>
           <div className="jobList">
-            {visibleJobs.map((job) => (
+            {status === "loading" && Array.from({ length: 3 }, (_, index) => (
+              <div className="jobCard skeletonCard" aria-hidden="true" key={index}>
+                <span className="skeleton skeletonScore" />
+                <div className="skeletonBody"><span className="skeleton short" /><span className="skeleton title" /><span className="skeleton line" /><span className="skeleton line" /></div>
+                <span className="skeleton action" />
+              </div>
+            ))}
+            {status !== "loading" && visibleJobs.map((job) => (
               <article className="jobCard" key={job.id}>
                 <div className="score" aria-label={`${job.score}% match`} title={job.scoreReasons.join(", ")}><strong>{job.score}</strong><span>% match</span></div>
                 <div className="jobBody">
-                  <div className="jobMeta"><span className={`source ${job.source === 'Reddit' ? 'reddit' : ''}`}>{job.source}</span><span>{job.community}</span><span>{formatAge(job.ageHours)}</span></div>
+                  <div className="jobMeta"><span className={`source ${job.source === 'Reddit' ? 'reddit' : ''}`}>{job.source}</span><span>{job.community}</span><span>{status === "demo" ? "Sample data" : formatAge(job.ageHours)}</span></div>
                   <h3>{job.title}</h3>
                   <p>{job.description}</p>
                   <div className="tagRow">{job.tags.map(tag => <span key={tag}>{tag}</span>)}</div>
@@ -256,11 +282,11 @@ export default function Home() {
                   <strong>{job.budgetLabel}</strong>
                   <button type="button" aria-pressed={savedIds.includes(job.id)} aria-label={`${savedIds.includes(job.id) ? "Remove" : "Save"} ${job.title}`} onClick={() => toggleSaved(job)}>{savedIds.includes(job.id) ? "♥" : "♡"}</button>
                   {savedIds.includes(job.id) && <label className="statusField"><span>Status</span><select value={jobStatuses[job.id] ?? "Saved"} onChange={(event) => updateJobStatus(job.id, event.target.value as ApplicationStatus)} aria-label={`Application status for ${job.title}`}>{applicationStatuses.map((applicationStatus) => <option key={applicationStatus}>{applicationStatus}</option>)}</select></label>}
-                  <a href={job.url}>View post ↗</a>
+                  <a href={job.url} target="_blank" rel="noopener noreferrer">View post ↗</a>
                 </div>
               </article>
             ))}
-            {!visibleJobs.length && <div className="emptyState"><strong>{savedOnly ? "No saved opportunities yet" : "No opportunities match these filters"}</strong><p>{savedOnly ? "Save promising opportunities with the heart button to keep them here." : "Lower the minimum score, select more disciplines, or reset the filters."}</p><button type="button" onClick={resetFilters}>{savedOnly ? "Show all opportunities" : "Reset filters"}</button></div>}
+            {status !== "loading" && !visibleJobs.length && <div className="emptyState"><strong>{savedOnly ? "No saved opportunities yet" : "No opportunities match these filters"}</strong><p>{savedOnly ? "Save promising opportunities with the heart button to keep them here." : "Lower the minimum score, select more disciplines, or reset the filters."}</p><button type="button" onClick={resetFilters}>{savedOnly ? "Show all opportunities" : "Reset filters"}</button></div>}
           </div>
         </div>
       </section>
