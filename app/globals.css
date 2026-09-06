@@ -29,6 +29,7 @@ nav a:hover { color: var(--green); }
 .searchStatus { min-height: 18px; margin: 12px 0 0; font-size: 12px; color: var(--muted); }
 .searchStatus.live { color: var(--green); font-weight: 650; }
 .searchStatus.error { color: #a33b2b; }
+.sourceWarning { max-width: 850px; margin-top: 12px; padding: 11px 14px; border: 1px solid #e5c66d; border-radius: 8px; color: #684d08; background: #fff8df; font-size: 12px; }
 .trustLine { margin-top: 24px; display: flex; gap: 28px; font-size: 12px; color: var(--muted); }
 .trustLine b { color: var(--ink); }
 .workspace { display: grid; grid-template-columns: 230px 1fr; gap: 44px; padding: 64px 5vw 90px; background: #fff; border-top: 1px solid var(--line); }
@@ -57,7 +58,7 @@ aside { padding-right: 30px; border-right: 1px solid var(--line); }
 .jobMeta .source { color: #735cff; font-weight: 750; }
 .jobMeta .source.reddit { color: #ed5b35; }
 .jobBody h3 { margin: 10px 0 7px; font-size: 18px; letter-spacing: -.3px; }
-.jobBody > p { margin: 0; max-width: 680px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.jobBody > p { margin: 0; max-width: 680px; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 4; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .tagRow { display: flex; gap: 6px; margin-top: 14px; }
 .tagRow span { padding: 5px 8px; border-radius: 4px; background: var(--cream); font-size: 10px; }
 .jobAction { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; font-size: 12px; }
@@ -66,6 +67,15 @@ aside { padding-right: 30px; border-right: 1px solid var(--line); }
 .statusField { display: grid; gap: 4px; width: 100%; color: var(--muted); font-size: 10px; }
 .statusField select { width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: white; font: inherit; }
 .jobAction a { margin-top: auto; color: var(--green); font-weight: 700; }
+.skeletonCard { pointer-events: none; }
+.skeleton { display: block; border-radius: 6px; background: linear-gradient(90deg, var(--cream) 25%, #f7f6f1 50%, var(--cream) 75%); background-size: 200% 100%; animation: skeletonPulse 1.4s ease-in-out infinite; }
+.skeletonScore { width: 64px; height: 64px; border-radius: 50%; }
+.skeletonBody { display: grid; align-content: start; gap: 10px; }
+.skeletonBody .short { width: 30%; height: 10px; }
+.skeletonBody .title { width: 62%; height: 20px; }
+.skeletonBody .line { width: 100%; height: 11px; }
+.skeleton.action { width: 100%; height: 34px; }
+@keyframes skeletonPulse { to { background-position: -200% 0; } }
 .how { padding: 88px 5vw; background: var(--ink); color: white; }
 .how .sectionLabel { color: var(--lime); }
 .how h2 { font-size: clamp(42px, 5vw, 70px); }
