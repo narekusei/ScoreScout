@@ -27,6 +27,7 @@ type ApplicationStatus = (typeof applicationStatuses)[number];
 type OpportunitiesResponse = {
   opportunities?: ScoredOpportunity[];
   message?: string;
+  retryAfterSeconds?: number;
   meta?: {
     collected: number;
     returned: number;
@@ -171,7 +172,9 @@ export default function Home() {
           response.status === 503
             ? "No live sources are configured yet. Add Reddit credentials, public RSS feeds, " +
               "Greenhouse board tokens, or Lever site names."
-            : payload.message || "Live search is temporarily unavailable.",
+            : response.status === 429
+              ? `Reddit rate limit reached. Try again in ${payload.retryAfterSeconds ?? "a few"} seconds.`
+              : payload.message || "Live search is temporarily unavailable.",
         );
       }
 

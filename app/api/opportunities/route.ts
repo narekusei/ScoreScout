@@ -167,6 +167,8 @@ async function handleOpportunities(request: Request, dependencies: RouteDependen
         reason instanceof GreenhouseCollectorError ||
         reason instanceof LeverCollectorError) &&
       reason.status === 429;
+    const retryAfterSeconds =
+      reason instanceof RedditCollectorError ? reason.retryAfterSeconds : undefined;
     const knownError =
       reason instanceof RedditCollectorError ||
       reason instanceof RssCollectorError ||
@@ -177,10 +179,17 @@ async function handleOpportunities(request: Request, dependencies: RouteDependen
       {
         error: "source_request_failed",
         message: knownError ? reason.message : "ScoreScout could not load opportunities right now.",
+        ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
         failedSources,
         failedRequests,
       },
-      { status: rateLimited ? 429 : 502 },
+      {
+        status: rateLimited ? 429 : 502,
+        headers:
+          retryAfterSeconds === undefined
+            ? undefined
+            : { "Retry-After": String(retryAfterSeconds) },
+      },
     );
   }
 

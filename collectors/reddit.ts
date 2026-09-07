@@ -22,6 +22,11 @@ type RedditListing = {
   };
 };
 
+type RedditTokenResponse = {
+  access_token?: string;
+  expires_in?: number;
+};
+
 export type RedditCollectorOptions = {
   credentials: RedditCredentials;
   communities: string[];
@@ -35,12 +40,34 @@ export type RedditCollectorOptions = {
 
 const TOKEN_URL = "https://www.reddit.com/api/v1/access_token";
 const API_URL = "https://oauth.reddit.com";
+const TOKEN_EXPIRY_SAFETY_MS = 60_000;
+
+const tokenCache = new Map<string, { accessToken: string; expiresAt: number }>();
 
 export class RedditCollectorError extends Error {
-  constructor(message: string, public readonly status?: number) {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly retryAfterSeconds?: number,
+  ) {
     super(message);
     this.name = "RedditCollectorError";
   }
+}
+
+function retryAfterSeconds(response: Response) {
+  const retryAfterHeader = response.headers.get("retry-after");
+  const retryAfter = retryAfterHeader === null ? Number.NaN : Number(retryAfterHeader);
+  if (Number.isFinite(retryAfter) && retryAfter >= 0) return Math.ceil(retryAfter);
+
+  const resetHeader = response.headers.get("x-ratelimit-reset");
+  const reset = resetHeader === null ? Number.NaN : Number(resetHeader);
+  return Number.isFinite(reset) && reset >= 0 ? Math.ceil(reset) : undefined;
+}
+
+function requestError(message: string, response: Response) {
+  const retryAfter = response.status === 429 ? retryAfterSeconds(response) : undefined;
+  return new RedditCollectorError(message, response.status, retryAfter);
 }
 
 function validateCredentials(credentials: RedditCredentials) {
@@ -81,6 +108,10 @@ async function getAccessToken(
   timeoutMs?: number,
   signal?: AbortSignal,
 ) {
+  const cacheKey = credentials.clientId;
+  const cached = tokenCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.accessToken;
+
   return requestWithTimeout(
     async (requestSignal) => {
       const response = await fetchImpl(TOKEN_URL, {
@@ -95,14 +126,24 @@ async function getAccessToken(
       });
 
       if (!response.ok) {
-        throw new RedditCollectorError("Reddit OAuth authentication failed", response.status);
+        throw requestError("Reddit OAuth authentication failed", response);
       }
 
-      const payload = (await response.json()) as { access_token?: string };
+      let payload: RedditTokenResponse;
+      try {
+        payload = (await response.json()) as RedditTokenResponse;
+      } catch {
+        throw new RedditCollectorError("Reddit OAuth returned invalid JSON", response.status);
+      }
       if (!payload.access_token) {
         throw new RedditCollectorError("Reddit OAuth response did not include an access token");
       }
 
+      const lifetimeMs = Math.max(0, (payload.expires_in ?? 3_600) * 1_000);
+      tokenCache.set(cacheKey, {
+        accessToken: payload.access_token,
+        expiresAt: Date.now() + Math.max(0, lifetimeMs - TOKEN_EXPIRY_SAFETY_MS),
+      });
       return payload.access_token;
     },
     { timeoutMs, signal },
@@ -141,12 +182,37 @@ export async function collectRedditOpportunities(options: RedditCollectorOptions
       });
 
       if (!response.ok) {
-        throw new RedditCollectorError("Reddit search request failed", response.status);
+        throw requestError("Reddit search request failed", response);
       }
 
-      const listing = (await response.json()) as RedditListing;
-      return listing.data.children.map(({ data }) => redditPostToOpportunity(data, now));
+      let listing: RedditListing;
+      try {
+        listing = (await response.json()) as RedditListing;
+      } catch {
+        throw new RedditCollectorError("Reddit search returned invalid JSON", response.status);
+      }
+      if (!Array.isArray(listing?.data?.children)) {
+        throw new RedditCollectorError("Reddit search returned an unexpected response");
+      }
+
+      return listing.data.children.flatMap(({ data }) => {
+        if (
+          !data ||
+          typeof data.id !== "string" ||
+          typeof data.title !== "string" ||
+          typeof data.subreddit !== "string" ||
+          typeof data.permalink !== "string" ||
+          typeof data.created_utc !== "number"
+        ) {
+          return [];
+        }
+        return [redditPostToOpportunity(data, now)];
+      });
     },
     { timeoutMs: options.timeoutMs, signal: options.signal },
   );
+}
+
+export function clearRedditTokenCache() {
+  tokenCache.clear();
 }

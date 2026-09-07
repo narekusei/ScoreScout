@@ -8,7 +8,7 @@ ScoreScout is a portfolio web application that helps composers and music creator
 
 ## Current milestone
 
-The current milestone includes the product identity, a responsive opportunity dashboard, deterministic relevance scoring, an OAuth-based Reddit collector, and live dashboard search through a server-only endpoint. Demonstration cards remain available before the first search and when showcasing the project without credentials.
+The current milestone includes the product identity, a responsive opportunity dashboard, deterministic relevance scoring, and a production-ready Reddit OAuth integration through a server-only endpoint. Demonstration cards remain available before the first search and when showcasing the project without credentials.
 
 ## Product direction
 
@@ -33,7 +33,39 @@ Create a production build with `npm run build`. The standard Next.js build is co
 
 ScoreScout uses Reddit's official OAuth API and never stores API credentials in source control. Copy `.env.example` to `.env.local`, add credentials for your Reddit application, and keep the local file private.
 
-The collector handles authentication, searches selected communities, limits result counts, and converts Reddit posts into the shared `Opportunity` model. The `GET /api/opportunities` endpoint keeps credentials on the server, applies the same query to results from every configured source, scores the matches, removes weak results, and returns at most 30 opportunities. An optional `q` query parameter can override the default music-job search; commas and `OR` separate alternatives, while quoted text is matched as a phrase.
+Create a Reddit application and configure:
+
+```env
+REDDIT_CLIENT_ID=your_client_id
+REDDIT_CLIENT_SECRET=your_client_secret
+REDDIT_USER_AGENT=web:scorescout:v0.1.0 (by /u/your_reddit_username)
+```
+
+The collector uses the OAuth `client_credentials` flow, caches the short-lived access token, searches `r/gameDevClassifieds`, `r/INAT`, `r/MusicJobs`, and `r/GameAudio`, and converts valid posts into the shared `Opportunity` model. OAuth failures, malformed responses, timeouts, empty listings, and `429` rate limits are handled explicitly. Reddit's retry delay is propagated through the API and displayed by the UI.
+
+The `GET /api/opportunities` endpoint keeps credentials on the server, applies the same query to results from every configured source, scores the matches, removes duplicates and weak results, and returns at most 30 opportunities. An optional `q` query parameter can override the default music-job search; commas and `OR` separate alternatives, while quoted text is matched as a phrase.
+
+To verify the complete local flow:
+
+```bash
+cp .env.example .env.local
+# Replace the three REDDIT_* placeholders in .env.local
+npm run dev
+```
+
+Open `http://localhost:3000`, enter a query such as `composer, game music`, and choose **Scout opportunities**. You can also inspect the normalized server response directly at `http://localhost:3000/api/opportunities?q=composer`.
+
+## External source architecture
+
+| Source | Current implementation | Configuration | Status |
+|---|---|---|---|
+| Reddit | Official OAuth search, token caching, normalization, timeout and rate-limit handling | Three server-only `REDDIT_*` variables | Primary live integration |
+| RSS/Atom | Standards-based feed parser with per-feed failure isolation | `RSS_FEED_URLS` | Real optional adapter; feeds must be selected manually |
+| Greenhouse | Official public Job Board API adapter | `GREENHOUSE_BOARD_TOKENS` | Real optional adapter; company boards must be selected manually |
+| Lever | Official public Postings API adapter | `LEVER_SITE_NAMES` | Real optional adapter; company sites must be selected manually |
+| ProductionHub | Demonstration card only | None | Mock/sample; no live adapter |
+
+Collectors are server-side adapters: each external payload becomes the same `Opportunity` shape. The API route orchestrates configured collectors and owns cross-source query matching, deduplication, scoring, sorting, and failure reporting. The React UI only consumes normalized opportunities, so it has no Reddit-specific business logic beyond a friendly rate-limit message. Tests inject mock collector and `fetch` implementations; no credentials or external network calls are required in CI.
 
 ## RSS and Atom setup
 
@@ -55,6 +87,7 @@ ScoreScout supports the official public Lever Postings API, which exposes publis
 4. Dashboard data loading, search, filters, and sorting ✓
 5. Saved opportunities and application tracking ✓
 6. Additional compliant data sources ✓
+7. First production external API: Reddit OAuth end-to-end ✓
 
 ### Next development stages
 
@@ -62,7 +95,8 @@ ScoreScout supports the official public Lever Postings API, which exposes publis
 - [x] Apply the search query consistently to Reddit, RSS, Greenhouse, and Lever results
 - [x] Add request timeouts and preserve successful feeds, boards, and sites when siblings fail
 - [x] Correct Lever freshness, salary normalization, and currency-aware budget filtering
-- [ ] Add API-route and UI tests for search, partial failures, saved jobs, and statuses
+- [x] Add API-route and UI tests for search, partial failures, saved jobs, and statuses
+- [x] Harden Reddit as the first production external API: OAuth token reuse, response validation, rate-limit propagation, UI handling, and tests
 - [ ] Define a server API and data model for saved opportunities and application statuses
 - [ ] Add Supabase migrations, row-level security, and server-only configuration without secrets
 - [ ] Add user ownership and authentication for private saved opportunities
