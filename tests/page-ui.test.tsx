@@ -157,3 +157,23 @@ test("shows the API error state without replacing the current opportunities", as
   await waitFor(() => assert.equal(view.getByRole("status").textContent, "Collector unavailable"));
   assert.equal(view.getAllByRole("article").length, 3);
 });
+
+test("shows a useful retry message when Reddit rate limits the search", async () => {
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({
+      message: "Reddit search request failed",
+      retryAfterSeconds: 23,
+    }), {
+      status: 429,
+      headers: { "content-type": "application/json", "retry-after": "23" },
+    });
+
+  const view = render(<Home />);
+  await act(async () => {});
+  fireEvent.submit(view.getByRole("button", { name: "Scout opportunities" }).closest("form")!);
+
+  await waitFor(() => assert.equal(
+    view.getByRole("status").textContent,
+    "Reddit rate limit reached. Try again in 23 seconds.",
+  ));
+});

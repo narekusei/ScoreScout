@@ -145,7 +145,7 @@ test("returns 429 when all-source failure is caused by a rate limit", async () =
       REDDIT_USER_AGENT: "scorescout-tests",
     },
     collectReddit: async () => {
-      throw new RedditCollectorError("Reddit rate limit reached", 429);
+      throw new RedditCollectorError("Reddit rate limit reached", 429, 42);
     },
   });
 
@@ -155,5 +155,7 @@ test("returns 429 when all-source failure is caused by a rate limit", async () =
   assert.equal(response.status, 429);
   assert.equal(body.error, "source_request_failed");
   assert.equal(body.message, "Reddit rate limit reached");
+  assert.equal(body.retryAfterSeconds, 42);
+  assert.equal(response.headers.get("retry-after"), "42");
   assert.deepEqual(body.failedSources, ["Reddit"]);
 });
