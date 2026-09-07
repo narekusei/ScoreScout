@@ -79,6 +79,12 @@ ScoreScout supports the public Greenhouse Job Board API, which does not require 
 
 ScoreScout supports the official public Lever Postings API, which exposes published jobs without credentials. Set `LEVER_SITE_NAMES` to a comma-separated list of up to five company site names from Lever job URLs. The server only calls Lever's fixed HTTPS API host, limits response size, validates hosted job links, and combines normalized jobs with the other configured sources.
 
+## Persistence schema
+
+The future authenticated persistence layer is defined in `db/schema.ts` and in the first Supabase migration under `supabase/migrations`. It stores a complete opportunity snapshot so saved live results remain useful even after they disappear from a source. A unique `(user_id, opportunity_id)` constraint prevents duplicate saves, and every saved item has one application status.
+
+The migration links ScoreScout users to Supabase Auth users and enables row-level security without adding access policies. This is deliberately deny-by-default: the tables are not connected to the application until the next authentication and ownership stage adds explicit per-user policies.
+
 ## Roadmap
 
 1. Responsive interface and product identity
@@ -97,8 +103,8 @@ ScoreScout supports the official public Lever Postings API, which exposes publis
 - [x] Correct Lever freshness, salary normalization, and currency-aware budget filtering
 - [x] Add API-route and UI tests for search, partial failures, saved jobs, and statuses
 - [x] Harden Reddit as the first production external API: OAuth token reuse, response validation, rate-limit propagation, UI handling, and tests
-- [ ] Define a server API and data model for saved opportunities and application statuses
-- [ ] Add Supabase migrations, row-level security, and server-only configuration without secrets
+- [x] Define the Supabase data model and migration for users, saved opportunities, and application statuses
+- [ ] Add the authenticated server API, ownership policies, and server-only configuration without secrets
 - [ ] Add user ownership and authentication for private saved opportunities
 - [ ] Move saved opportunities and statuses from localStorage to Supabase with a safe local migration
 - [ ] Verify the complete save, reload, status-update, and deployment flow
