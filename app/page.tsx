@@ -209,6 +209,7 @@ export default function Home() {
         <nav aria-label="Main navigation">
           <a href="#jobs">Opportunities</a>
           <a href="#how">How it works</a>
+          <a href="/account">Account</a>
           <button type="button" className="savedButton" aria-pressed={savedOnly} onClick={() => setSavedOnly((current) => !current)}>Saved <span>{savedIds.length}</span></button>
         </nav>
       </header>

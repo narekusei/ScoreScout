@@ -87,4 +87,14 @@ aside { padding-right: 30px; border-right: 1px solid var(--line); }
 footer { padding: 34px 5vw; display: flex; align-items: center; gap: 30px; font-size: 12px; color: var(--muted); }
 footer span { color: var(--ink); font-weight: 800; font-size: 18px; }
 footer small { margin-left: auto; }
+.authPage { min-height: 100vh; padding: 48px 5vw; background: radial-gradient(circle at 80% 15%, rgba(217,242,96,.3), transparent 30%), var(--paper); }
+.authCard { max-width: 520px; margin: 72px auto 0; padding: 36px; border: 1px solid var(--line); border-radius: 12px; background: white; box-shadow: 0 18px 50px rgba(23,33,28,.08); }
+.authCard h1 { margin: 8px 0 12px; font-family: var(--font-serif); font-size: 42px; font-weight: 400; }
+.authCard > p { color: var(--muted); line-height: 1.6; }
+.authCard form { display: grid; gap: 10px; margin-top: 24px; }
+.authCard label { font-size: 12px; font-weight: 700; }
+.authCard input { padding: 12px; border: 1px solid var(--line); border-radius: 7px; }
+.authCard button { padding: 12px 16px; border: 0; border-radius: 7px; color: white; background: var(--green); cursor: pointer; font-weight: 700; }
+.authError { color: #a33b2b !important; }
+.authMessage { color: var(--green) !important; }
 @media (max-width: 800px) { nav a { display: none; } .hero { padding-top: 58px; } .hero h1 { letter-spacing: -3px; } .searchBox { flex-direction: column; align-items: stretch; padding: 16px; gap: 14px; } .trustLine { flex-wrap: wrap; gap: 10px 20px; } .workspace { grid-template-columns: 1fr; } aside { display: none; } .jobCard { grid-template-columns: 58px 1fr; padding: 17px; gap: 14px; } .jobAction { grid-column: 2; flex-direction: row; align-items: center; } .jobAction a { margin: 0 0 0 auto; } .score { width: 54px; height: 54px; } .steps { grid-template-columns: 1fr; gap: 20px; } footer { align-items: flex-start; flex-direction: column; gap: 8px; } footer small { margin: 0; } }
