@@ -89,7 +89,9 @@ The migration links ScoreScout users to Supabase Auth users and enables row-leve
 
 Authentication uses Supabase passwordless email links. Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `NEXT_PUBLIC_SITE_URL` locally and in Vercel, apply the migrations in `supabase/migrations`, and add `<site URL>/auth/callback` to the allowed redirect URLs in Supabase Auth. The publishable/anon key is safe to expose; never add a service-role key to browser code.
 
-The Next.js proxy refreshes auth cookies, the callback exchanges one-time codes for sessions, and protected pages verify the user on the server. Database RLS policies scope every select, insert, update, and delete to `auth.uid()`. Saved data remains in `localStorage` until the next roadmap item connects the existing UI to these protected tables.
+The Next.js proxy refreshes auth cookies, the callback exchanges one-time codes for sessions, and protected pages verify the user on the server. Database RLS policies scope every select, insert, update, and delete to `auth.uid()`.
+
+Authenticated users now read and write saved opportunities through `/api/saved-opportunities`. On the first authenticated load, valid legacy `localStorage` snapshots and statuses are uploaded, confirmed by the server, and only then removed locally. A per-user completion marker prevents repeated imports. Anonymous users and temporary API failures retain the existing local-only behavior, so data is not discarded when cloud sync is unavailable.
 
 ## Roadmap
 
@@ -111,7 +113,7 @@ The Next.js proxy refreshes auth cookies, the callback exchanges one-time codes 
 - [x] Harden Reddit as the first production external API: OAuth token reuse, response validation, rate-limit propagation, UI handling, and tests
 - [x] Define the Supabase data model and migration for users, saved opportunities, and application statuses
 - [x] Add passwordless authentication, user provisioning, ownership policies, and validated server configuration
-- [ ] Move saved opportunities and statuses from localStorage to Supabase with a safe local migration
+- [x] Move saved opportunities and statuses from localStorage to Supabase with a safe local migration
 - [ ] Verify the complete save, reload, status-update, and deployment flow
 
 ## Important

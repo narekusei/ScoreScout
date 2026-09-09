@@ -11,7 +11,7 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-function isScoredOpportunity(value: unknown): value is ScoredOpportunity {
+export function isScoredOpportunity(value: unknown): value is ScoredOpportunity {
   if (!value || typeof value !== "object") return false;
 
   const opportunity = value as Record<string, unknown>;
@@ -32,6 +32,13 @@ function isScoredOpportunity(value: unknown): value is ScoredOpportunity {
     Number.isFinite(opportunity.score) &&
     isStringArray(opportunity.scoreReasons)
   );
+}
+
+export const applicationStatuses = ["Saved", "Applied", "Interview", "Won", "Rejected"] as const;
+export type ApplicationStatus = (typeof applicationStatuses)[number];
+
+export function isApplicationStatus(value: unknown): value is ApplicationStatus {
+  return typeof value === "string" && applicationStatuses.includes(value as ApplicationStatus);
 }
 
 export function serializeSavedOpportunities(opportunities: ScoredOpportunity[]) {

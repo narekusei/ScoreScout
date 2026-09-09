@@ -4,6 +4,8 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import Home from "../app/page";
+import { opportunities as demoOpportunities } from "../lib/opportunity";
+import { serializeSavedOpportunities } from "../lib/saved-opportunities";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "https://scorescout.test/",
@@ -35,10 +37,12 @@ afterEach(() => {
 
 test("shows the loading state and renders successful live search results", async () => {
   let resolveFetch!: (response: Response) => void;
-  globalThis.fetch = () =>
-    new Promise<Response>((resolve) => {
-      resolveFetch = resolve;
-    });
+  globalThis.fetch = (input) => {
+    if (String(input).startsWith("/api/saved-opportunities")) {
+      return Promise.resolve(new Response(null, { status: 401 }));
+    }
+    return new Promise<Response>((resolve) => { resolveFetch = resolve; });
+  };
 
   const view = render(<Home />);
   await act(async () => {});
@@ -143,9 +147,44 @@ test("saves an opportunity, persists its application status, and restores both",
   assert.ok(restored.getByText(title));
 });
 
+test("migrates local saved data once and switches to cloud storage", async () => {
+  const saved = demoOpportunities[0];
+  window.localStorage.setItem(
+    "scorescout:saved-opportunities",
+    serializeSavedOpportunities([saved]),
+  );
+  window.localStorage.setItem(
+    "scorescout:application-statuses",
+    JSON.stringify({ [saved.id]: "Interview" }),
+  );
+  const methods: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    assert.equal(String(input), "/api/saved-opportunities");
+    methods.push(init?.method ?? "GET");
+    return new Response(JSON.stringify({
+      userId: "user-1",
+      opportunities: init?.method === "PUT" ? [saved] : [],
+      statuses: init?.method === "PUT" ? { [saved.id]: "Interview" } : {},
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+
+  const view = render(<Home />);
+  await waitFor(() => assert.ok(view.getByText("Cloud", { selector: ".trustLine b" })));
+  assert.deepEqual(methods, ["GET", "PUT"]);
+  assert.equal(window.localStorage.getItem("scorescout:saved-opportunities"), null);
+  assert.equal(window.localStorage.getItem("scorescout:application-statuses"), null);
+  assert.equal(window.localStorage.getItem("scorescout:server-migration:user-1"), "complete");
+  assert.equal(
+    (view.getByRole("combobox", { name: `Application status for ${saved.title}` }) as HTMLSelectElement).value,
+    "Interview",
+  );
+});
+
 test("shows the API error state without replacing the current opportunities", async () => {
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ message: "Collector unavailable" }), {
+  globalThis.fetch = async (input) =>
+    String(input).startsWith("/api/saved-opportunities")
+      ? new Response(null, { status: 401 })
+      : new Response(JSON.stringify({ message: "Collector unavailable" }), {
       status: 500,
       headers: { "content-type": "application/json" },
     });
@@ -159,8 +198,10 @@ test("shows the API error state without replacing the current opportunities", as
 });
 
 test("shows a useful retry message when Reddit rate limits the search", async () => {
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({
+  globalThis.fetch = async (input) =>
+    String(input).startsWith("/api/saved-opportunities")
+      ? new Response(null, { status: 401 })
+      : new Response(JSON.stringify({
       message: "Reddit search request failed",
       retryAfterSeconds: 23,
     }), {
