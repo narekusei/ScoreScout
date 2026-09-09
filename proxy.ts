@@ -4,7 +4,13 @@ import { getSupabaseConfig } from "./lib/supabase/config";
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
-  const { url, anonKey } = getSupabaseConfig();
+  let configuration;
+  try {
+    configuration = getSupabaseConfig();
+  } catch {
+    return response;
+  }
+  const { url, anonKey } = configuration;
   const supabase = createServerClient(url, anonKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),

@@ -1,11 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { opportunities as demoOpportunities, type ScoredOpportunity } from "../lib/opportunity";
 import {
   mergeOpportunities,
   parseSavedOpportunities,
   serializeSavedOpportunities,
+  applicationStatuses,
+  type ApplicationStatus,
 } from "../lib/saved-opportunities";
 import { hasSpecifiedBudget } from "../lib/budget";
 
@@ -21,8 +23,13 @@ const disciplineTerms: Record<Discipline, string[]> = {
 
 const savedStorageKey = "scorescout:saved-opportunities";
 const statusStorageKey = "scorescout:application-statuses";
-const applicationStatuses = ["Saved", "Applied", "Interview", "Won", "Rejected"] as const;
-type ApplicationStatus = (typeof applicationStatuses)[number];
+const savedMigrationKey = "scorescout:server-migration";
+
+type SavedOpportunitiesResponse = {
+  userId: string;
+  opportunities: ScoredOpportunity[];
+  statuses: Record<string, ApplicationStatus>;
+};
 
 type OpportunitiesResponse = {
   opportunities?: ScoredOpportunity[];
@@ -58,6 +65,8 @@ export default function Home() {
   const [savedJobs, setSavedJobs] = useState<ScoredOpportunity[]>([]);
   const [savedOnly, setSavedOnly] = useState(false);
   const [jobStatuses, setJobStatuses] = useState<Record<string, ApplicationStatus>>({});
+  const [syncMode, setSyncMode] = useState<"local" | "server">("local");
+  const persistenceMode = useRef<"local" | "server">("local");
 
   useEffect(() => {
     let cancelled = false;
@@ -69,13 +78,41 @@ export default function Home() {
       const parsedStatuses = statuses
         ? (JSON.parse(statuses) as Record<string, ApplicationStatus>)
         : {};
-      queueMicrotask(() => {
+      queueMicrotask(async () => {
         if (!cancelled) {
           setSavedJobs(parsed);
           setJobStatuses(parsedStatuses);
           if (saved) {
             window.localStorage.setItem(savedStorageKey, serializeSavedOpportunities(parsed));
           }
+        }
+
+        try {
+          const response = await fetch("/api/saved-opportunities");
+          if (!response.ok) return;
+          let serverState = await response.json() as SavedOpportunitiesResponse;
+          const migrationMarker = `${savedMigrationKey}:${serverState.userId}`;
+          if ((parsed.length > 0 || Object.keys(parsedStatuses).length > 0) &&
+              !window.localStorage.getItem(migrationMarker)) {
+            const migrationResponse = await fetch("/api/saved-opportunities", {
+              method: "PUT",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ opportunities: parsed, statuses: parsedStatuses }),
+            });
+            if (!migrationResponse.ok) return;
+            serverState = await migrationResponse.json() as SavedOpportunitiesResponse;
+            window.localStorage.setItem(migrationMarker, "complete");
+            window.localStorage.removeItem(savedStorageKey);
+            window.localStorage.removeItem(statusStorageKey);
+          }
+          if (!cancelled) {
+            persistenceMode.current = "server";
+            setSyncMode("server");
+            setSavedJobs(serverState.opportunities);
+            setJobStatuses(serverState.statuses);
+          }
+        } catch {
+          // Anonymous or temporarily offline users keep the existing local store.
         }
       });
     } catch {
@@ -128,30 +165,63 @@ export default function Home() {
     setSavedOnly(false);
   }
 
-  function toggleSaved(job: ScoredOpportunity) {
-    setSavedJobs((current) => {
-      const removing = current.some((savedJob) => savedJob.id === job.id);
-      const next = removing
-        ? current.filter((savedJob) => savedJob.id !== job.id)
-        : [...current, job];
+  async function toggleSaved(job: ScoredOpportunity) {
+    const current = savedJobs;
+    const removing = current.some((savedJob) => savedJob.id === job.id);
+    const next = removing
+      ? current.filter((savedJob) => savedJob.id !== job.id)
+      : [...current, job];
+    const currentStatuses = jobStatuses;
+    const updatedStatuses = { ...currentStatuses };
+    if (removing) delete updatedStatuses[job.id];
+    else updatedStatuses[job.id] = "Saved";
+    setSavedJobs(next);
+    setJobStatuses(updatedStatuses);
+
+    if (persistenceMode.current === "local") {
       window.localStorage.setItem(savedStorageKey, serializeSavedOpportunities(next));
-      setJobStatuses((statuses) => {
-        const updated = { ...statuses };
-        if (removing) delete updated[job.id];
-        else updated[job.id] = "Saved";
-        window.localStorage.setItem(statusStorageKey, JSON.stringify(updated));
-        return updated;
-      });
-      return next;
-    });
+      window.localStorage.setItem(statusStorageKey, JSON.stringify(updatedStatuses));
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        removing ? `/api/saved-opportunities?id=${encodeURIComponent(job.id)}` : "/api/saved-opportunities",
+        removing ? { method: "DELETE" } : {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ opportunity: job, status: "Saved" }),
+        },
+      );
+      if (response.ok) return;
+    } catch {
+      // Roll back optimistic state below.
+    }
+    setSavedJobs(current);
+    setJobStatuses(currentStatuses);
+    setNotice("Could not sync that saved opportunity. Please try again.");
   }
 
-  function updateJobStatus(id: string, status: ApplicationStatus) {
-    setJobStatuses((current) => {
-      const next = { ...current, [id]: status };
+  async function updateJobStatus(id: string, applicationStatus: ApplicationStatus) {
+    const current = jobStatuses;
+    const next = { ...current, [id]: applicationStatus };
+    setJobStatuses(next);
+    if (persistenceMode.current === "local") {
       window.localStorage.setItem(statusStorageKey, JSON.stringify(next));
-      return next;
-    });
+      return;
+    }
+    try {
+      const response = await fetch("/api/saved-opportunities", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ opportunityId: id, status: applicationStatus }),
+      });
+      if (response.ok) return;
+    } catch {
+      // Roll back optimistic state below.
+    }
+    setJobStatuses(current);
+    setNotice("Could not sync that application status. Please try again.");
   }
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -235,6 +305,7 @@ export default function Home() {
           <span><b>{sourceCount}</b> compliant {sourceCount === 1 ? "source" : "sources"} configured</span>
           <span><b>{visibleJobs.length}</b> of {availableJobs.length} matches shown</span>
           <span><b>{status === "live" ? "Live" : "Demo"}</b> data mode</span>
+          <span><b>{syncMode === "server" ? "Cloud" : "Local"}</b> saved storage</span>
         </div>
       </section>
 
