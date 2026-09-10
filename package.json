@@ -17,7 +17,8 @@
     "test:saved": "tsx --test tests/saved-opportunities.test.ts",
     "test:search": "tsx --test tests/opportunity-search.test.ts",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -47,7 +48,8 @@
     "typescript": "5.9.3",
     "vinext": "0.0.50",
     "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "wrangler": "4.92.0",
+    "@playwright/test": "^1.55.0"
   },
   "type": "module"
 }
